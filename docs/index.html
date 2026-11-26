@@ -291,6 +291,11 @@
       .ttile .rm{position:absolute;top:-7px;right:-7px;width:22px;height:22px;border-radius:50%;background:var(--navy);color:#fff;border:2px solid var(--surface);display:flex;align-items:center;justify-content:center;z-index:2;cursor:pointer;padding:0;box-shadow:0 1px 4px rgba(16,24,40,.3)}
       .ttile .rm svg{width:10px;height:10px}
       .ttile .re{position:absolute;left:0;right:0;bottom:0;background:rgba(146,90,0,.9);color:#fff;font-size:10px;font-weight:800;padding:2px 1px;text-align:center}
+      .ttile .re.fail{background:rgba(178,34,34,.92)}
+      .upfailbox{background:var(--red-bg);border-radius:var(--radius);padding:14px 16px;margin-top:14px}
+      .upfailbox b{color:var(--red);font-size:15px}
+      .upfailbox ul{margin:8px 0 0;padding-left:18px;font-size:13px}
+      .upfailbox .small{color:var(--red)}
       .addtile{width:56px;height:56px;border-radius:10px;border:1.5px dashed var(--faint);background:var(--surface);color:var(--muted);font-size:24px;display:flex;align-items:center;justify-content:center;flex:none;cursor:pointer;padding:0}
       .tsummary{font-size:13px;color:var(--muted);font-weight:600;line-height:1.4;flex:1;min-width:130px}
       .lightbox{position:fixed;inset:0;background:rgba(8,13,24,.9);z-index:90;display:none;align-items:center;justify-content:center;padding:22px}
@@ -605,6 +610,7 @@
           <div id="entriFiles" style="margin-top:2px"></div>
           <p class="small muted" style="margin-top:10px">Eviden bisa ditambah kapan saja ke entri yang sudah tersimpan lewat tombol + di atas. Berkas maks 10 MB per berkas. Foto tampil sebagai thumbnail kecil dan thumbnail-nya ikut tersimpan sebagai pratinjau; setelah aplikasi ditutup, lampiran tersimpan sebagai metadata (nama, ukuran, tipe) — isi berkas aslinya perlu dilampirkan ulang.</p>
           <p class="small muted" id="entriFileNote" style="display:none;margin-top:10px"></p>
+          <div id="entriUpStatus"></div>
           <input type="file" id="entriFileInput" multiple accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt" style="display:none" />
           <div id="entriDeleteZone" style="margin-top:22px"></div>
         </main>
@@ -867,7 +873,7 @@ function jumlahLabel(e){ const r = e.rhk ? RHKS.find(x=>x.id===e.rhk) : null; co
 /* ---------------- Penyimpanan lokal (localStorage) ---------------- */
 const STORE_KEY = "progresio.store.v1";
 let dataMode = "sample";
-function cleanFiles(files){ return (files||[]).map(f=>{ const o={name:f.name, size:f.size, type:f.type, sample:!!f.sample}; if (f.thumb) o.thumb=f.thumb; if (f.uploaded) o.uploaded=true; if (f.driveFileId) o.driveFileId=f.driveFileId; return o; }); }
+function cleanFiles(files){ return (files||[]).map(f=>{ const o={name:f.name, size:f.size, type:f.type, sample:!!f.sample}; if (f.thumb) o.thumb=f.thumb; if (f.uploaded) o.uploaded=true; if (f.driveFileId) o.driveFileId=f.driveFileId; if (f.upState) o.upState=f.upState; if (f.upError) o.upError=f.upError; if (f.upTries) o.upTries=f.upTries; return o; }); }
 function updateStorageStatus(){
   const el = $("#storageStatus"); if(!el) return;
   el.textContent = (dataMode==="sample" ? "Mode data contoh" : "Data Anda tersimpan") + " · " + ENTRIES.length + " entri · " + RHKS.length + " RHK · tersimpan otomatis setiap ada perubahan.";
@@ -902,7 +908,7 @@ function loadStore(){
   }
   if (Array.isArray(s.libur)) LIBUR = s.libur;
   if (Array.isArray(s.rhks) && s.rhks.length) RHKS = s.rhks.map(r=>{ const base = SAMPLE_RHKS.find(x=>x.id===r.id) || {}; return Object.assign({ satuan:base.satuan||"", aturan:base.aturan||"", durasiStd:base.durasiStd||60, akses:base.akses||"link" }, r); });
-  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||""})) }));
+  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
   if (typeof s.entrySeq==="number" && s.entrySeq>entrySeq) entrySeq = s.entrySeq;
   if (s.skorPattern) SKOR_PATTERN = s.skorPattern;
   dataMode = s.dataMode==="custom" ? "custom" : "sample";
@@ -1033,6 +1039,7 @@ function entryTags(e){
   if (!e.rhk) h+='<span class="chip amber">Belum terpetakan</span>';
   if (e.driveUrl) h='<span class="chip green"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>Link siap</span>';
   else if (e.link) h+='<span class="chip amber"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>Bukti lokal</span>';
+  if (e.files && e.files.some(f=>f.upState==="failed")) h+='<span class="chip red">Eviden gagal terunggah</span>';
   if (!e.end) h+='<span class="chip amber">Jam selesai: isi sendiri</span>';
   const de = durasiEntry(e);
   if (de.estimasi && de.menit) h+='<span class="chip amber">Durasi estimasi ±'+de.menit+' mnt</span>';
@@ -1483,7 +1490,7 @@ $("#imgLightbox").addEventListener("click", ev=>{ if (ev.target.id==="imgLightbo
 function fileChipHTML(f, idx){
   const kb = f.size ? Math.max(1,Math.round(f.size/1024)) : 0;
   const rm = (typeof idx==="number") ? '<button class="rm" data-rmf="'+idx+'" aria-label="Hapus file '+esc(f.name)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>' : "";
-  return '<span class="fchip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'+esc(f.name)+(kb?' <span class="muted">· '+kb+' KB</span>':"")+(f.needsReattach?' <span style="color:var(--amber);font-weight:700">· lampirkan ulang</span>':"")+rm+'</span>';
+  return '<span class="fchip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'+esc(f.name)+(kb?' <span class="muted">· '+kb+' KB</span>':"")+(f.upState==="failed"?' <span style="color:var(--red);font-weight:700">· gagal terunggah</span>':(f.upState==="pending"&&f.file?' <span style="color:var(--amber);font-weight:700">· menunggu unggah</span>':(f.needsReattach?' <span style="color:var(--amber);font-weight:700">· lampirkan ulang</span>':"")))+rm+'</span>';
 }
 
 /* ---------------- Eviden pada entri yang sudah tersimpan ---------------- */
@@ -1497,7 +1504,7 @@ function renderEntriFiles(e){
       + (x.f.thumb
         ? '<img src="'+x.f.thumb+'" alt="Thumbnail '+esc(x.f.name)+'"/>'
         : '<svg class="ph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>')
-      + (x.f.needsReattach ? '<span class="re">LAMPIR ULANG</span>' : '')
+      + (x.f.upState==="failed" ? '<span class="re fail">GAGAL UNGGAH</span>' : (x.f.needsReattach ? '<span class="re">LAMPIR ULANG</span>' : ''))
       + '</span><button class="rm" data-rmf="'+x.i+'" aria-label="Hapus file '+esc(x.f.name)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></span>').join("")
     + '<button class="addtile" id="entriAddTile" aria-label="Tambah eviden — foto atau file">+</button>'
     + '<span class="tsummary">'+(e.files.length ? e.files.length+' file bukti'+(tiles.length ? ' · ketuk foto untuk memperbesar' : '') : 'Tambah eviden — foto atau file')+'</span></div>';
@@ -1519,6 +1526,26 @@ function renderEntriFiles(e){
   const needRe = e.files.some(f=>f.needsReattach);
   const fnote = $("#entriFileNote");
   if (fnote){ fnote.style.display = needRe ? "block" : "none"; fnote.textContent = needRe ? "Isi berkas tidak ikut tersimpan di perangkat — setelah aplikasi dibuka ulang, berkas di atas tercatat sebagai metadata (nama, ukuran, tipe) dan perlu dilampirkan ulang bila mau diekspor. Thumbnail foto di atas tetap tampil sebagai pratinjau kecilnya." : ""; }
+  /* Status unggah eviden entri ini: gagal/tertunda harus terlihat di sini juga,
+     bukan hanya di kartu Koneksi — lengkap dengan tombol ulangi untuk entri ini. */
+  const upBox = $("#entriUpStatus");
+  if (upBox){
+    const gagal = e.files.filter(f=>f.upState==="failed");
+    const tunggu = e.files.filter(f=>f.upState==="pending" && f.file);
+    if (!gagal.length && !tunggu.length){ upBox.innerHTML = ""; }
+    else{
+      const bisaUlang = gagal.concat(tunggu).some(f=>f.file) && !!e.logId;
+      let uh = '<div class="upfailbox" style="margin-top:12px"><b>'+(gagal.length ? gagal.length+' eviden gagal terunggah ke Drive' : tunggu.length+' eviden belum terunggah ke Drive')+'</b>';
+      if (gagal.length) uh += '<ul>'+gagal.map(f=>'<li>'+esc(f.name)+(f.upError ? ' — '+esc(f.upError) : '')+(f.file ? '' : ' · berkas aslinya sudah tidak ada di sesi ini: lampirkan ulang lewat tombol + di atas, lalu unggah lagi')+'</li>').join("")+'</ul>';
+      if (tunggu.length) uh += '<p class="small" style="margin:6px 0 0">'+tunggu.map(f=>esc(f.name)).join(", ")+' menunggu diunggah.</p>';
+      if (!e.logId) uh += '<p class="small" style="margin:6px 0 0">Entri ini belum terkirim ke server — evidennya ikut terunggah pada sinkron berikutnya.</p>';
+      else if (bisaUlang) uh += '<button class="btn primary" id="entriRetryUp" style="margin-top:10px;min-height:44px"'+(gasUploadBusy?" disabled":"")+'>'+(gasUploadBusy ? "Mengunggah…" : "Coba unggah ulang")+'</button>';
+      uh += '</div>';
+      upBox.innerHTML = uh;
+      const rb = $("#entriRetryUp");
+      if (rb) rb.addEventListener("click", ()=>retryUploads(e.id));
+    }
+  }
 }
 $("#entriFileInput").addEventListener("change", ev=>{
   const e = ENTRIES.find(x=>x.id===entriFileTargetId);
@@ -1526,7 +1553,7 @@ $("#entriFileInput").addEventListener("change", ev=>{
   if (e){
     Array.from(ev.target.files).forEach(f=>{
       if (f.size > 10*1024*1024){ toast("“"+f.name+"” lebih dari 10 MB — dilewati"); return; }
-      const nf = {name:f.name, size:f.size, type:f.type, file:f};
+      const nf = {name:f.name, size:f.size, type:f.type, file:f, upState:"pending", upError:"", upTries:0};
       e.files.push(nf);
       buatThumb(nf, ok=>{ if (ok){ saveStore(); if (currentEntry===e) renderEntriFiles(e); } });
       added++;
@@ -1784,7 +1811,7 @@ function renderSheetFiles(){
 $("#fileInput").addEventListener("change", ev=>{
   Array.from(ev.target.files).forEach(f=>{
     if (f.size > 10*1024*1024){ toast("“"+f.name+"” lebih dari 10 MB — dilewati"); return; }
-    const nf = {name:f.name, size:f.size, type:f.type, file:f};
+    const nf = {name:f.name, size:f.size, type:f.type, file:f, upState:"pending", upError:"", upTries:0};
     sheetFiles.push(nf);
     buatThumb(nf, ok=>{ if (ok) renderSheetFiles(); });
   });
@@ -2402,6 +2429,8 @@ async function exportZIP(sel){
 let GAS_PING = null;    // hasil tes koneksi terakhir {ok, waktu, msg?, data?}
 let GAS_FOLDERS = null; // daftar folder terbuka dari Drive (null = belum dimuat dari server)
 let gasSyncBusy = false;
+let gasUploadBusy = false; // unggah ulang eviden saja (tanpa syncPush) sedang berjalan
+let gasSyncQueued = false; // gasAutoSync yang datang saat sinkron berjalan: antre, jangan dibuang
 let gasPinFormOpen = false; // formulir Ganti PIN di kartu Koneksi GAS sedang terbuka
 let gasLoginMsg = ""; // pesan status terakhir panel login GAS (mis. PIN salah dari server)
 
@@ -2617,13 +2646,126 @@ async function gasRefreshFolders(){
   catch(_){ GAS_FOLDERS = null; }
   if ($("#view-set").classList.contains("active")) renderEvidenSettings();
 }
+/* ---------------- Unggah eviden: terlihat & bisa diulang ----------------
+   Perbaikan 2026-11-27 (kasus folder Drive kosong 2026-11-27_LOG-0001):
+   kegagalan unggah TIDAK lagi ditelan. Setiap berkas eviden membawa status
+   persisten (f.upState "pending"/"failed" + f.upError + f.upTries, ikut
+   tersimpan via cleanFiles) sehingga gagalnya tetap terlihat setelah aplikasi
+   dibuka ulang; chip Hari ini berubah merah; kartu Koneksi menampilkan kotak
+   peringatan berisi daftar berkas + penyebab + tombol “Coba unggah ulang”
+   yang HANYA mengunggah eviden (entri tidak dikirim ulang). Foto besar
+   dikompres dulu sebelum dikirim supaya tidak masuk jalur resumable >5 MB
+   di Worker yang rapuh. Berkas yang isi aslinya sudah tidak ada di sesi ini
+   (aplikasi sempat ditutup) ditandai jujur: perlu dilampirkan ulang. */
+function pendingUploadFiles(){
+  const out = { failed:[], pending:[], reattach:[] };
+  if (dataMode==="sample") return out;
+  ENTRIES.forEach(e=>{
+    (e.files||[]).forEach(f=>{
+      if (f.uploaded || f.sample) return;
+      if (f.upState==="failed") (f.file ? out.failed : out.reattach).push({ e:e, f:f });
+      else if (f.upState==="pending" && f.file) out.pending.push({ e:e, f:f });
+    });
+  });
+  return out;
+}
+/* Siapkan muatan unggah: foto >1,5 MB atau sisi terpanjang >2048 px diperkecil
+   ke maks 2048 px dan dienkode ulang JPEG q0,85 (nama disesuaikan ke .jpg).
+   Hasil kompresi hanya dipakai bila memang lebih kecil dari berkas asli;
+   berkas non-foto dan foto kecil dikirim apa adanya. */
+async function prepareUploadPayload(f){
+  const file = f.file;
+  const asli = { blob:file, nama:f.name, mime:f.type || "application/octet-stream" };
+  if (!file || !/^image\//.test(file.type || "")) return asli;
+  if (file.size <= 1.5*1024*1024) return asli;
+  try{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    await new Promise((res, rej)=>{ img.onload = res; img.onerror = rej; img.src = url; });
+    const w = img.naturalWidth||0, h = img.naturalHeight||0;
+    URL.revokeObjectURL(url);
+    if (!w || !h) return asli;
+    const s = Math.min(1, 2048/Math.max(w,h));
+    if (s >= 1 && file.size <= 4*1024*1024) return asli;
+    const cv = document.createElement("canvas");
+    cv.width = Math.max(1, Math.round(w*s)); cv.height = Math.max(1, Math.round(h*s));
+    cv.getContext("2d").drawImage(img, 0, 0, cv.width, cv.height);
+    const blob = await new Promise(res=>cv.toBlob(res, "image/jpeg", 0.85));
+    if (!blob || blob.size >= file.size) return asli;
+    return { blob:blob, nama:String(f.name||"foto").replace(/\.[^.]+$/, "")+".jpg", mime:"image/jpeg" };
+  }catch(_){ return asli; }
+}
+/* Unggah SATU berkas eviden dengan maksimal 2 percobaan (jeda 2 detik).
+   Status berkas diperbarui apa pun hasilnya — tidak ada galat yang ditelan. */
+async function uploadOneEviden(e, f){
+  let lastErr = null;
+  for (let attempt=1; attempt<=2; attempt++){
+    try{
+      const pay = await prepareUploadPayload(f);
+      const b64 = await fileToB64(pay.blob);
+      const up = await gasCall({ action:"uploadEviden", idLog: e.logId, berkas:{ nama:pay.nama, mime:pay.mime, base64:b64 } }, 120000);
+      f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || f.driveFileId || "";
+      if (pay.nama !== f.name){ f.name = pay.nama; f.size = pay.blob.size; f.type = pay.mime; }
+      if (up.linkBukti){ e.driveUrl = up.linkBukti; e.link = true; }
+      if (up.folderUrl) e.folderUrl = up.folderUrl;
+      return true;
+    }catch(err){
+      lastErr = err;
+      if (attempt<2) await new Promise(r=>setTimeout(r, 2000));
+    }
+  }
+  f.upState = "failed"; f.upTries = (f.upTries||0)+1;
+  f.upError = (lastErr && lastErr.message) || "Unggah gagal tanpa pesan dari server";
+  return false;
+}
+/* Satu putaran unggah untuk semua entri ber-ID LOG yang berkasnya tertunda
+   dan isi aslinya masih ada di sesi ini. Mengisi rep.uploaded / rep.upFailed. */
+async function runUploadPass(rep){
+  for (const e of ENTRIES){
+    if (!e.logId) continue;
+    for (const f of e.files){
+      if (!f.file || f.uploaded) continue;
+      if (await uploadOneEviden(e, f)) rep.uploaded++; else rep.upFailed++;
+    }
+  }
+}
+/* Tombol “Coba unggah ulang”: hanya eviden yang tertunda — entri TIDAK
+   dikirim ulang (tidak ada syncPush/syncPull), jadi aman ditekan berkali-kali. */
+async function retryUploads(onlyEntryId){
+  if (gasUploadBusy || gasSyncBusy){ toast("Sinkron/unggah sedang berjalan — tunggu selesai dulu"); return; }
+  if (!gasUrlVal()){ toast("URL backend belum diisi — lewat wizard langkah Koneksi"); return; }
+  if (!gasSessionValid()){ toast(backendKind(gasUrlVal())==="worker" ? "Masuk dengan Google dulu dari Pengaturan › Koneksi Worker" : "Login PIN GAS dulu dari Pengaturan › Koneksi GAS"); openSyncSettings(); return; }
+  if (dataMode==="sample"){ toast("Mode data contoh — unggah eviden nonaktif"); return; }
+  gasUploadBusy = true; renderGasCard();
+  if ($("#view-entri").classList.contains("active") && typeof currentEntry!=="undefined" && currentEntry) renderEntriFiles(currentEntry);
+  const rep = { uploaded:0, upFailed:0 };
+  try{
+    for (const e of ENTRIES){
+      if (!e.logId) continue;
+      if (onlyEntryId && e.id!==onlyEntryId) continue;
+      for (const f of e.files){
+        if (!f.file || f.uploaded) continue;
+        if (await uploadOneEviden(e, f)) rep.uploaded++; else rep.upFailed++;
+      }
+    }
+  }finally{
+    gasUploadBusy = false;
+    saveStore();
+    renderAll(); renderGasCard();
+    if ($("#view-entri").classList.contains("active") && typeof currentEntry!=="undefined" && currentEntry) renderEntriFiles(currentEntry);
+  }
+  if (rep.upFailed) toast(rep.upFailed+" eviden masih gagal terunggah — penyebabnya tertulis di kartu Koneksi");
+  else if (rep.uploaded) toast(rep.uploaded+" eviden berhasil terunggah ke Drive");
+  else toast("Tidak ada eviden tertunda yang berkasnya masih ada di sesi ini — yang berkasnya hilang perlu dilampirkan ulang dari entrinya");
+  return rep;
+}
 /* Sinkron dua arah: dorong profil/RHK/entri (Client_ID anti-ganda), unggah
    eviden yang berkas aslinya masih ada di sesi ini, lalu tarik & gabungkan
    data server (termasuk link folder Drive asli untuk kolom 7). Entri tanpa
    jam lengkap dilewati — server memang menolaknya — dan dilaporkan jujur. */
 async function syncNow(opts){
   opts = opts || {};
-  if (gasSyncBusy) return null;
+  if (gasSyncBusy){ gasSyncQueued = true; return null; }
   if (!gasUrlVal()){ if (!opts.silent) toast("URL backend belum diisi — lewat wizard langkah Koneksi"); return null; }
   if (!gasSessionValid()){ if (!opts.silent) toast(backendKind(gasUrlVal())==="worker" ? "Masuk dengan Google dulu dari Pengaturan › Koneksi Worker" : "Login PIN GAS dulu dari Pengaturan › Koneksi GAS"); renderGasCard(); return null; }
   if (dataMode==="sample"){ if (!opts.silent) toast("Mode data contoh — sinkron GAS nonaktif agar contoh tidak terkirim ke Sheets"); return null; }
@@ -2639,20 +2781,7 @@ async function syncNow(opts){
       if (hsl.id){ e.logId = hsl.id; e.clientId = hsl.clientId; }
       if (hsl.status==="tersimpan"){ e.synced = true; rep.pushed++; } else rep.failed++;
     });
-    for (const e of ENTRIES){
-      if (!e.logId) continue;
-      for (const f of e.files){
-        if (!f.file || f.uploaded) continue;
-        try{
-          const b64 = await fileToB64(f.file);
-          const up = await gasCall({ action:"uploadEviden", idLog: e.logId, berkas:{ nama:f.name, mime:f.type || "application/octet-stream", base64:b64 } }, 120000);
-          f.uploaded = true; f.driveFileId = up.fileId || "";
-          if (up.linkBukti){ e.driveUrl = up.linkBukti; e.link = true; }
-          if (up.folderUrl) e.folderUrl = up.folderUrl;
-          rep.uploaded++;
-        }catch(_){ rep.upFailed++; }
-      }
-    }
+    await runUploadPass(rep);
     const pull = await gasCall({ action:"syncPull" });
     if (pull.profil && Object.keys(pull.profil).length) PROFILE = Object.assign({}, PROFILE, pull.profil);
     if (Array.isArray(pull.rhks) && pull.rhks.length){
@@ -2666,7 +2795,10 @@ async function syncNow(opts){
     if (Array.isArray(pull.entri)){ rep.pulled = pull.entri.length; mergePulledEntries(pull.entri); }
     SETTINGS.lastSync = rep; saveStore();
     gasRefreshFolders();
-    if (!opts.silent) toast("Sinkron GAS selesai — "+rep.pushed+" entri terkirim, "+rep.uploaded+" eviden terunggah");
+    /* Gagal unggah eviden tidak boleh tenggelam di laporan kecil: bunyikan
+       toast juga pada sinkron otomatis, dan bedakan pesannya dari sukses. */
+    if (rep.upFailed) toast(rep.upFailed+" eviden GAGAL terunggah — buka Pengaturan › Koneksi untuk melihat penyebabnya dan coba unggah ulang");
+    else if (!opts.silent) toast("Sinkron GAS selesai — "+rep.pushed+" entri terkirim, "+rep.uploaded+" eviden terunggah");
   }catch(err){
     rep.error = (err && err.message) || String(err);
     SETTINGS.lastSync = rep; saveStore();
@@ -2675,6 +2807,9 @@ async function syncNow(opts){
   gasSyncBusy = false;
   renderAll();
   if ($("#view-set").classList.contains("active")) renderSettings();
+  /* Antrean dari gasAutoSync yang datang saat sinkron ini berjalan dijalankan
+     sekarang — dulu panggilan itu dibuang diam-diam dan unggahan bisa hilang. */
+  if (gasSyncQueued){ gasSyncQueued = false; gasAutoSync(); }
   return rep;
 }
 function gasAutoSync(){ if (gasUrlVal() && gasSessionValid() && dataMode!=="sample") syncNow({ silent:true }); }
@@ -2698,9 +2833,14 @@ function relTimeStr(ts){
 function renderSyncChip(){
   const c = $("#syncChip"); if (!c) return;
   const ls = SETTINGS.lastSync;
+  const pend = pendingUploadFiles();
   let cls = "", txt = "Belum tersinkron";
-  if (ls && ls.error){ cls = "err"; txt = "Sinkron terakhir gagal"; }
+  /* Eviden gagal terunggah mengalahkan status hijau: chip merah sampai
+     unggah ulangnya berhasil — sinkron entri yang sukses tidak menyembunyikannya. */
+  if (pend.failed.length){ cls = "err"; txt = pend.failed.length+" eviden gagal terunggah — ketuk untuk unggah ulang"; }
+  else if (ls && ls.error){ cls = "err"; txt = "Sinkron terakhir gagal"; }
   else if (ls){ cls = "ok"; txt = "Tersinkron "+(ls.ts ? relTimeStr(ls.ts) : (ls.waktu ? "· "+ls.waktu : "")); }
+  if (!pend.failed.length && pend.pending.length && ls && !ls.error){ cls = ""; txt = pend.pending.length+" eviden menunggu unggah"; }
   c.className = "syncchip "+cls;
   c.innerHTML = '<span class="dot"></span><span>'+esc(txt)+'</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
 }
@@ -2793,6 +2933,24 @@ function renderGasCard(){
       + '</div>';
     }
   }
+  /* Kotak peringatan unggah eviden: selama masih ada berkas tertunda/gagal,
+     kotak ini tampil menonjol di kartu Koneksi — lengkap dengan penyebab
+     per berkas dan tombol ulangi yang tidak mengirim ulang entri. */
+  const pendCard = pendingUploadFiles();
+  if (pendCard.failed.length || pendCard.pending.length || pendCard.reattach.length){
+    const totalGagal = pendCard.failed.length + pendCard.reattach.length;
+    h += '<div class="upfailbox"><b>'+(totalGagal ? totalGagal+' eviden gagal terunggah ke Drive' : pendCard.pending.length+' eviden belum terunggah ke Drive')+'</b>'
+      + '<ul>'
+      + pendCard.failed.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span>'+(x.f.upError ? ' — '+esc(x.f.upError) : '')+'</li>').join("")
+      + pendCard.reattach.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span> — berkas aslinya sudah tidak ada di perangkat sejak aplikasi ditutup; buka entrinya dan lampirkan ulang lewat tombol +, lalu unggah lagi</li>').join("")
+      + pendCard.pending.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span> — menunggu diunggah</li>').join("")
+      + '</ul>'
+      + ((pendCard.failed.length || pendCard.pending.length)
+        ? '<button class="btn primary" id="gasRetryUpBtn" style="margin-top:12px;min-height:48px"'+(gasUploadBusy||gasSyncBusy?" disabled":"")+'>'+(gasUploadBusy ? "Mengunggah ulang…" : gasSyncBusy ? "Sinkron sedang berjalan…" : "Coba unggah ulang")+'</button>'
+          + '<p class="small" style="margin:8px 0 0">Tombol ini hanya mengunggah eviden yang tertunda — entri tidak dikirim ulang ke Sheets.</p>'
+        : '')
+      + '</div>';
+  }
   const ls = SETTINGS.lastSync;
   if (ls) h += '<p class="small" style="margin:12px 0 0">Sinkron terakhir: <b>'+esc(ls.waktu)+'</b>'+(ls.error
     ? ' · <span style="color:var(--red)">gagal — '+esc(ls.error)+'</span>'
@@ -2823,6 +2981,7 @@ function renderGasCard(){
     inp.focus();
   });
   const sb = $("#gasSyncBtn"); if (sb) sb.addEventListener("click", ()=>syncNow({ silent:false }));
+  const rub = $("#gasRetryUpBtn"); if (rub) rub.addEventListener("click", ()=>retryUploads());
   const gp = $("#gasPinBtn"); if (gp) gp.addEventListener("click", ()=>{ gasPinFormOpen = !gasPinFormOpen; renderGasCard(); });
   const gps = $("#gasPinSaveBtn"); if (gps) gps.addEventListener("click", async ()=>{
     const pinLama = ($("#gasPinLama").value || "").trim();
