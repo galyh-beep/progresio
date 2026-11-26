@@ -357,6 +357,23 @@
       .setrow span{font-size:13px;color:var(--muted)}
 
       .banner{background:var(--amber-bg);border-radius:var(--radius);padding:12px 14px;margin-top:14px;display:flex;gap:10px;align-items:center;font-size:13px;color:var(--amber)}
+      .syncchip{display:inline-flex;align-items:center;gap:7px;margin-top:12px;padding:6px 12px 6px 10px;border-radius:999px;background:var(--surface);border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:700;cursor:pointer;min-height:32px}
+      .syncchip .dot{width:8px;height:8px;border-radius:50%;background:var(--amber-dot);flex:none}
+      .syncchip.ok{color:var(--emerald-dark)}
+      .syncchip.ok .dot{background:var(--emerald)}
+      .syncchip.err{color:var(--red)}
+      .syncchip.err .dot{background:var(--red)}
+      @media (prefers-color-scheme: dark){ .syncchip.ok{color:#5ED3A5} }
+      .syncchip svg{width:13px;height:13px;flex:none;opacity:.65}
+      .syncnudge{position:fixed;left:50%;transform:translate(-50%,16px);bottom:calc(86px + env(safe-area-inset-bottom));width:min(448px,calc(100vw - 24px));background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 30px rgba(10,22,36,.25);padding:14px;z-index:55;opacity:0;pointer-events:none;transition:opacity .22s var(--ease),transform .22s var(--ease)}
+      .syncnudge.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+      .syncnudge p{margin:0;font-size:15px;line-height:1.45}
+      .syncnudge .row{display:flex;gap:8px;margin-top:12px}
+      .syncnudge .row .btn{flex:1;min-height:44px;padding:10px 12px}
+      .wizconn{background:var(--emerald-bg);border-radius:var(--radius);padding:14px;margin:0 0 14px}
+      .wizconn p{margin:0}
+      .wizconn .row{display:flex;gap:8px;margin-top:12px}
+      .wizconn .row .btn{flex:1;min-height:48px}
       .banner button{margin-left:auto;flex:none}
       .toast{position:fixed;left:50%;transform:translate(-50%,20px);bottom:96px;background:var(--navy);color:#fff;padding:11px 18px;border-radius:99px;font-weight:700;font-size:15px;opacity:0;pointer-events:none;transition:opacity .22s var(--ease),transform .22s var(--ease);z-index:80;box-shadow:0 8px 24px rgba(0,0,0,.3);max-width:88vw;text-align:center}
       .toast.show{opacity:1;transform:translate(-50%,0)}
@@ -397,6 +414,7 @@
           <button class="iconbtn" id="gearBtn" aria-label="Pengaturan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         </div>
         <main>
+          <button class="syncchip" id="syncChip" type="button" aria-label="Status sinkronisasi — ketuk untuk membuka kartu koneksi backend di Pengaturan"></button>
           <div class="banner" id="sampleBanner">
             <span><b>Mode data contoh.</b> RHK &amp; entri di bawah ini contoh — ganti lewat wizard Pengaturan kapan saja.</span>
             <button class="linkbtn" id="bannerWizard" style="color:var(--amber)">Atur</button>
@@ -658,6 +676,8 @@
 
     <div class="toast" id="toast"></div>
 
+    <div class="syncnudge" id="syncNudge" role="status"></div>
+
     <div class="lightbox" id="imgLightbox" role="dialog" aria-label="Pratinjau foto eviden">
       <button class="lbclose" id="lbClose" aria-label="Tutup pratinjau"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
       <figure><img id="lbImg" alt="Foto eviden ukuran lebih besar"/><figcaption id="lbCap"></figcaption></figure>
@@ -816,7 +836,7 @@ function backendKind(url){
 
 /* ---------------- Profil & pengaturan (contoh) ---------------- */
 let PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-let SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true };
+let SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
 const RAMADAN_RANGES = [ {start:"2026-02-18", end:"2026-03-19"}, {start:"2027-02-08", end:"2027-03-09"} ]; // perkiraan awal Ramadan; target Ramadan 6 jam 30 menit
@@ -865,7 +885,7 @@ function loadStore(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
   if (s.profile) PROFILE = s.profile;
-  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null }, s.settings);
+  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
      sesi PIN lama dibuang karena tidak berlaku di Worker — pengguna masuk
@@ -896,7 +916,7 @@ function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
   PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-  SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true };
+  SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
   LIBUR = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
   seedSample();
@@ -1040,6 +1060,7 @@ function renderToday(){
   const h=TODAY.getHours();
   const sapa = h<11 ? "Pagi" : h<15 ? "Siang" : h<19 ? "Sore" : "Malam";
   $("#greetName").textContent = sapa+", "+(PROFILE.nama||"Ardian");
+  renderSyncChip(); hideSyncNudgeIfSynced();
   $("#avatarInit").textContent = (PROFILE.nama||"A").trim().charAt(0).toUpperCase();
   $("#todayLabel").textContent = fmtTglPanjang(TODAY_K);
   const q=quarterInfo();
@@ -1955,6 +1976,7 @@ function renderDrafts(aiNote){
     selDay = sheetDate;
     closeCatat(); renderAll();
     toast(made.length>1 ? made.length+" entri tersimpan dari draf" : (made[0].rhk ? "Entri tersimpan — terpetakan ke RHK "+made[0].rhk : "Entri tersimpan — belum terpetakan"));
+    maybeShowSyncNudge();
     if (made.length===1) openEntry(made[0].id);
   });
 }
@@ -2099,7 +2121,7 @@ function renderWizard(){
     if (d.rhkText) parseRHK(); else renderParsedList(d.rhks, "RHK yang sekarang dipakai (dari data contoh):");
   }
   if (wizStep===2){
-    b.innerHTML = '<div class="card"><h3>Koneksi backend</h3><p class="small muted" style="margin:0">Gemini adalah otak AI Progresio (Fase 2) — failover 3 model mengikuti urutan kelancaran: utama <b>gemini-3.5-flash-lite</b>, cadangan gemini-3.1-flash-lite, terakhir gemini-3.8-flash: catatan ketik &amp; suara dirapikan, jam mulai–selesai dan angka realisasi diekstrak mengikuti Satuan &amp; Aturan Hitung RHK, lalu dicocokkan secara semantik ke RHK menjadi draf 7 kolom. Kunci dipakai langsung dari peramban ini ke Google dan hanya tersimpan di perangkat ini. URL backend menyambungkan Progresio ke Sheets &amp; Drive: sinkron dua arah anti-ganda, eviden terunggah ke folder Drive per kegiatan, dan link folder asli tampil di kolom 7 entri. Bawaannya adalah Worker Cloudflare (masuk dengan Google); URL Web App GAS lama tetap bisa dipakai sebagai cadangan (masuk dengan PIN). Masuk &amp; sinkronnya dari Pengaturan › Koneksi Worker setelah wizard selesai.</p>'
+    b.innerHTML = '<div class="card"><h3>Koneksi backend</h3><div class="wizconn" id="wizConn"></div><p class="small muted" style="margin:0">Gemini adalah otak AI Progresio (Fase 2) — failover 3 model mengikuti urutan kelancaran: utama <b>gemini-3.5-flash-lite</b>, cadangan gemini-3.1-flash-lite, terakhir gemini-3.8-flash: catatan ketik &amp; suara dirapikan, jam mulai–selesai dan angka realisasi diekstrak mengikuti Satuan &amp; Aturan Hitung RHK, lalu dicocokkan secara semantik ke RHK menjadi draf 7 kolom. Kunci dipakai langsung dari peramban ini ke Google dan hanya tersimpan di perangkat ini. URL backend menyambungkan Progresio ke Sheets &amp; Drive: sinkron dua arah anti-ganda, eviden terunggah ke folder Drive per kegiatan, dan link folder asli tampil di kolom 7 entri. Bawaannya adalah Worker Cloudflare (masuk dengan Google); URL Web App GAS lama tetap bisa dipakai sebagai cadangan (masuk dengan PIN). Masuk bisa langsung dari tawaran di atas atau kapan saja dari Pengaturan › Koneksi Worker — sinkron, keluar sesi, dan kelola akses folder tetap dari kartu itu.</p>'
       + fld("URL backend (Worker / GAS)","s_gas",d.settings.gasUrl,"https://…workers.dev atau https://script.google.com/macros/s/…/exec")
       + '<button class="btn ghost" id="testGasBtn" type="button" style="margin-top:10px;min-height:44px">Tes koneksi backend</button>'
       + '<p class="small" id="testGasOut" style="margin-top:8px"></p>'
@@ -2110,6 +2132,53 @@ function renderWizard(){
       + '<p class="small" id="testGeminiOut" style="margin-top:8px"></p>'
       + '<p class="small muted">Kosongkan pun tidak apa-apa: tanpa kunci, Progresio tetap jalan dengan pencocokan kata kunci lokal di perangkat.</p></div>';
     $("#s_gas").addEventListener("input", e=>d.settings.gasUrl=e.target.value);
+    /* Tawaran hubungkan akun di langkah Koneksi: jelas tapi tidak memaksa.
+       Worker → tombol Masuk dengan Google (GIS) + Lewati sama menonjol;
+       GAS → PIN + Masuk dan Lewati berdampingan sama besar. Lewati langsung
+       lanjut ke langkah Telegram tanpa galat apa pun. Bila sesi sudah aktif,
+       blok ini berubah jadi penanda “Sudah masuk”. */
+    function renderWizConn(){
+      const z = $("#wizConn"); if (!z) return;
+      const kindW = backendKind(d.settings.gasUrl);
+      let h = '<p style="font-size:15px;line-height:1.45"><b>Hubungkan akun Google supaya datamu aman dan bisa dibuka di perangkat lain.</b></p>'
+        + '<p class="small muted" style="margin-top:6px">Tawaran saja, bukan syarat — Progresio tetap bisa dipakai penuh tanpa masuk. Menghubungkan menyalakan sinkron entri, RHK &amp; profil ke Sheets dan unggah eviden ke folder Drive; link folder aslinya tampil di kolom 7.</p>';
+      if (gasSessionValid()){
+        h += '<p style="margin-top:12px"><span class="chip green">Sudah masuk</span> <span class="small muted">Sesi backend aktif di perangkat ini — sinkron &amp; kelola akses foldernya dari Pengaturan › Koneksi.</span></p>';
+        z.innerHTML = h; return;
+      }
+      if (kindW==="gas"){
+        h += '<div class="field"><label for="wizPin">PIN admin GAS</label><input id="wizPin" type="password" inputmode="numeric" autocomplete="off" placeholder="PIN yang dipasang di Apps Script"/></div>'
+          + '<p class="small" id="wizConnMsg" style="margin:8px 0 0"></p>'
+          + '<div class="row"><button class="btn primary" id="wizLoginBtn" type="button" style="width:auto">Masuk dengan PIN</button><button class="btn ghost" id="wizSkipBtn" type="button">Lewati</button></div>';
+        z.innerHTML = h;
+        $("#wizLoginBtn").addEventListener("click", async ()=>{
+          const pin = ($("#wizPin").value || "").trim();
+          const msg = $("#wizConnMsg");
+          if (!pin){ msg.style.color = "var(--red)"; msg.textContent = "Isi dulu PIN admin GAS-nya — atau tekan Lewati untuk lanjut tanpa masuk."; return; }
+          SETTINGS.gasUrl = (d.settings.gasUrl || "").trim(); /* login memakai URL yang sedang diisi di langkah ini */
+          const btn = $("#wizLoginBtn"); btn.disabled = true; btn.textContent = "Memeriksa PIN…";
+          try{
+            await gasLogin(pin);
+            toast("Login GAS berhasil — sesi 6 jam aktif, menyinkronkan…");
+            renderWizard();
+            syncNow({ silent:false });
+          }catch(err){
+            btn.disabled = false; btn.textContent = "Masuk dengan PIN";
+            msg.style.color = "var(--red)"; msg.textContent = (err && err.message) || "Login GAS gagal";
+          }
+        });
+      } else {
+        h += '<div id="gisBtnWrapWiz" style="margin-top:12px;min-height:44px"></div>'
+          + '<div class="row"><button class="btn ghost" id="wizSkipBtn" type="button">Lewati — nanti saja</button></div>'
+          + '<p class="small muted" style="margin-top:8px">Tombol Google di atas membuka sesi 6 jam; server Worker hanya menerima Gmail pemilik backend, PIN tidak dipakai di Worker.</p>';
+        z.innerHTML = h;
+        mountGisButton(0, "gisBtnWrapWiz", Math.max(200, Math.min(400, z.clientWidth - 28)));
+      }
+      const sk = $("#wizSkipBtn");
+      if (sk) sk.addEventListener("click", ()=>{ wizStep = 3; renderWizard(); toast("Dilewati — hubungkan kapan saja dari Pengaturan › Koneksi"); });
+    }
+    renderWizConn();
+    $("#s_gas").addEventListener("change", renderWizConn);
     $("#testGasBtn").addEventListener("click", async ()=>{
       const btnG = $("#testGasBtn"); const outG = $("#testGasOut");
       btnG.disabled = true; outG.style.color = "var(--muted)"; outG.textContent = "Menghubungi backend… (server yang baru bangun bisa lambat — ada 1× ulangan otomatis, tunggu sampai selesai)";
@@ -2220,6 +2289,7 @@ $("#wizNext").addEventListener("click", ()=>{
   toast("Pengaturan tersimpan di perangkat ini. Selamat bekerja, "+(PROFILE.nama||"")+"!");
 });
 $("#gearBtn").addEventListener("click", ()=>{ show("set"); renderSettings(); });
+$("#syncChip").addEventListener("click", openSyncSettings);
 $("#bannerWizard").addEventListener("click", ()=>openWizard(0));
 $("#bellBtn").addEventListener("click", ()=>{ const q=quarterInfo(); toast("Pengingat: tenggat triwulan "+q.num+" tinggal "+q.days+" hari · H-3 & H-1 aktif"); });
 $("#scoreBox").addEventListener("click", ()=>{ show("skor"); renderSkor(); });
@@ -2483,24 +2553,25 @@ function onGoogleCredential(resp){
   gasLoginGoogle(resp.credential).then(()=>{
     toast("Masuk dengan Google berhasil — sesi 6 jam aktif, menyinkronkan…");
     renderGasCard();
+    if ($("#view-wizard").classList.contains("active")) renderWizard();
     syncNow({ silent:false });
-  }).catch(err=>{ gasLoginMsg = (err && err.message) || "Masuk dengan Google gagal"; renderGasCard(); });
+  }).catch(err=>{ gasLoginMsg = (err && err.message) || "Masuk dengan Google gagal"; renderGasCard(); if ($("#view-wizard").classList.contains("active")) toast("Masuk dengan Google gagal: "+gasLoginMsg); });
 }
-function mountGisButton(tries){
-  const wrap = document.getElementById("gisBtnWrap");
+function mountGisButton(tries, targetId, width){
+  const wrap = document.getElementById(targetId || "gisBtnWrap");
   if (!wrap) return;
   if (window.google && google.accounts && google.accounts.id){
     try{
       if (!gisInited){ google.accounts.id.initialize({ client_id: GOOGLE_CLIENT_ID, callback: onGoogleCredential }); gisInited = true; }
       wrap.innerHTML = "";
-      google.accounts.id.renderButton(wrap, { theme:"outline", size:"large", type:"standard", text:"signin_with", shape:"rectangular", logo_alignment:"left", width:300 });
+      google.accounts.id.renderButton(wrap, { theme:"outline", size:"large", type:"standard", text:"signin_with", shape:"rectangular", logo_alignment:"left", width: width || 300 });
     }catch(_){
       wrap.innerHTML = '<p class="small" style="margin:0;color:var(--red)">Tombol Google gagal ditampilkan di konteks ini — buka Progresio dari tab Chrome biasa atau PWA terpasang, lalu masuk dari sana.</p>';
     }
     return;
   }
   /* Pustaka GIS dimuat async — tunggu sebentar sebelum menyerah. */
-  if ((tries||0) < 20){ setTimeout(()=>mountGisButton((tries||0)+1), 500); return; }
+  if ((tries||0) < 20){ setTimeout(()=>mountGisButton((tries||0)+1, targetId, width), 500); return; }
   wrap.innerHTML = '<p class="small" style="margin:0;color:var(--red)">Tombol “Masuk dengan Google” belum termuat — periksa koneksi internet, lalu buka lagi Pengaturan.</p>';
 }
 function clientIdOf(e){ return e.clientId || ("pwa-"+e.id); }
@@ -2557,7 +2628,7 @@ async function syncNow(opts){
   if (!gasSessionValid()){ if (!opts.silent) toast(backendKind(gasUrlVal())==="worker" ? "Masuk dengan Google dulu dari Pengaturan › Koneksi Worker" : "Login PIN GAS dulu dari Pengaturan › Koneksi GAS"); renderGasCard(); return null; }
   if (dataMode==="sample"){ if (!opts.silent) toast("Mode data contoh — sinkron GAS nonaktif agar contoh tidak terkirim ke Sheets"); return null; }
   gasSyncBusy = true; renderGasCard();
-  const rep = { waktu:new Date().toLocaleString("id-ID"), pushed:0, skipped:0, failed:0, uploaded:0, upFailed:0, pulled:0, error:"" };
+  const rep = { waktu:new Date().toLocaleString("id-ID"), ts:Date.now(), pushed:0, skipped:0, failed:0, uploaded:0, upFailed:0, pulled:0, error:"" };
   try{
     const valid = ENTRIES.filter(e=>jamValid(e.start, e.end).ok);
     rep.skipped = ENTRIES.length - valid.length;
@@ -2607,8 +2678,60 @@ async function syncNow(opts){
   return rep;
 }
 function gasAutoSync(){ if (gasUrlVal() && gasSessionValid() && dataMode!=="sample") syncNow({ silent:true }); }
+/* ---------------- Status sinkron di Hari ini + pengingat sekali ----------------
+   Chip kecil di bawah sapaan: jujur apa adanya dari SETTINGS.lastSync &
+   sesi yang tersimpan — belum masuk / belum pernah sinkron = “Belum
+   tersinkron”; sinkron terakhir berhasil = “Tersinkron …” dengan waktu
+   relatif dari cap waktu mesinnya (rep.ts; laporan lama tanpa ts memakai
+   teks waktunya sendiri). Ketuk chip → kartu Koneksi di Pengaturan.
+   Pengingat lembut SATU KALI muncul setelah entri pertama tersimpan bila
+   belum masuk & belum pernah sinkron; Tutup/Hubungkan menandai
+   SETTINGS.syncNudgeDone sehingga tidak pernah muncul lagi. */
+function relTimeStr(ts){
+  const s = Math.max(0, (Date.now()-ts)/1000);
+  if (s<60) return "baru saja";
+  const m = Math.floor(s/60); if (m<60) return m+" menit lalu";
+  const h = Math.floor(m/60); if (h<24) return h+" jam lalu";
+  const d = Math.floor(h/24); if (d<30) return d+" hari lalu";
+  return new Date(ts).toLocaleDateString("id-ID");
+}
+function renderSyncChip(){
+  const c = $("#syncChip"); if (!c) return;
+  const ls = SETTINGS.lastSync;
+  let cls = "", txt = "Belum tersinkron";
+  if (ls && ls.error){ cls = "err"; txt = "Sinkron terakhir gagal"; }
+  else if (ls){ cls = "ok"; txt = "Tersinkron "+(ls.ts ? relTimeStr(ls.ts) : (ls.waktu ? "· "+ls.waktu : "")); }
+  c.className = "syncchip "+cls;
+  c.innerHTML = '<span class="dot"></span><span>'+esc(txt)+'</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+}
+function openSyncSettings(){
+  show("set"); renderSettings();
+  requestAnimationFrame(()=>{ const gc = $("#gasCard"); if (gc) gc.scrollIntoView({ behavior:"smooth", block:"start" }); });
+}
+let syncNudgeVisible = false;
+function renderSyncNudge(){
+  const n = $("#syncNudge"); if (!n) return;
+  if (!syncNudgeVisible){ n.classList.remove("show"); n.innerHTML = ""; return; }
+  n.innerHTML = '<p>Data ini baru tersimpan di perangkat ini. Hubungkan Google supaya aman?</p>'
+    + '<div class="row"><button class="btn primary" id="nudgeConnect" style="width:auto">Hubungkan</button><button class="btn plain" id="nudgeClose">Tutup</button></div>';
+  n.classList.add("show");
+  $("#nudgeConnect").addEventListener("click", ()=>{ dismissSyncNudge(); openSyncSettings(); });
+  $("#nudgeClose").addEventListener("click", dismissSyncNudge);
+}
+function dismissSyncNudge(){
+  SETTINGS.syncNudgeDone = true; saveStore();
+  syncNudgeVisible = false; renderSyncNudge();
+}
+function maybeShowSyncNudge(){
+  if (SETTINGS.syncNudgeDone || gasSessionValid() || SETTINGS.lastSync || dataMode==="sample") return;
+  syncNudgeVisible = true; renderSyncNudge();
+}
+function hideSyncNudgeIfSynced(){
+  if (syncNudgeVisible && gasSessionValid()){ syncNudgeVisible = false; renderSyncNudge(); }
+}
 function renderGasCard(){
   const z = $("#gasCard"); if (!z) return;
+  renderSyncChip(); hideSyncNudgeIfSynced();
   const url = gasUrlVal();
   const kind = backendKind(url);
   const namaBackend = kind==="worker" ? "Worker" : kind==="gas" ? "GAS" : "backend";
