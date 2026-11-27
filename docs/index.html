@@ -142,6 +142,8 @@
       .hollist li{display:flex;gap:8px;align-items:baseline;padding:4px 0;font-size:13px}
       .hollist li .dt{font-weight:700;white-space:nowrap}
       .hollist li .lb{color:var(--muted)}
+      .costbar{height:10px;border-radius:6px;background:var(--surface2);overflow:hidden;margin-top:10px}
+      .costbar i{display:block;height:100%;background:var(--emerald);border-radius:6px}
       .closedbox{background:var(--emerald-bg);border-radius:12px;padding:13px 15px;margin-top:12px;color:var(--emerald-dark);font-weight:700;font-size:15px}
       @media (prefers-color-scheme: dark){ .closedbox{color:#5ED3A5} }
 
@@ -448,8 +450,8 @@
       <!-- ================= HARI INI ================= -->
       <section class="view active" id="view-today">
         <div class="topbar">
-          <div class="avatar" id="avatarInit">A</div>
-          <div class="who"><b id="greetName">Pagi, Ardian</b><span id="todayLabel">—</span></div>
+          <div class="avatar" id="avatarInit">I</div>
+          <div class="who"><b id="greetName">Pagi, Insan ASN</b><span id="todayLabel">—</span></div>
           <button class="iconbtn" id="bellBtn" aria-label="Pengingat"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="dot"></span></button>
           <button class="iconbtn" id="gearBtn" aria-label="Pengaturan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         </div>
@@ -470,6 +472,7 @@
 
           <div class="cdcard" id="cdCard"></div>
           <div class="card" id="cdPanel" style="padding:14px 16px"></div>
+          <div class="card" id="costStrip" style="padding:14px 16px"></div>
 
           <div class="catat">
             <div class="rowflex">
@@ -621,6 +624,7 @@
           <div id="rhkMetaZone"></div>
           <div class="card" id="jadwalSetCard"></div>
           <div class="card" id="aiDiagCard"></div>
+          <div class="card" id="biayaCard"></div>
           <div class="card" id="gasCard"></div>
           <div class="card" id="driveFolderCard"></div>
           <div class="card" id="evidenSetCard"></div>
@@ -740,6 +744,14 @@
       </div>
 
       <div id="matchArea"></div>
+
+      <div class="field"><label for="modelModeSel">Model pemrosesan catatan ini</label>
+      <select id="modelModeSel">
+        <option value="auto" selected>Otomatis — urutan failover biasa (model utama dulu)</option>
+        <option value="lite">Flash-Lite — hemat, untuk catatan ringan</option>
+        <option value="flash38">3.8 Flash — untuk catatan yang butuh ketelitian ekstra</option>
+      </select></div>
+      <p class="small muted" style="margin:6px 0 0">Flash-Lite mendahulukan model Flash-Lite yang ringan &amp; murah; 3.8 Flash memakai gemini-3.8-flash lebih dulu. Bila model pilihan sedang bermasalah, urutan failover biasa tetap menjadi cadangan. Pemakaian &amp; biaya nyata setiap pencatatan tampil di kartu draf.</p>
 
       <div class="aistatus" id="aiStatus"></div>
 
@@ -922,8 +934,9 @@ function lengkapiProfil(p){
   if (p.unitOrganisasi == null) p.unitOrganisasi = PROFIL_BAWAAN.unitOrganisasi;
   return p;
 }
-let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
+let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0, batasBiaya:"", biayaWarned:{} };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
+let USAGE_LOG = []; // [{ts, date, month, model, inTok, outTok, cost}] — pemakaian AI nyata per pencatatan untuk penjaga biaya; tersimpan lokal di store yang sama
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
 /* Periode Ramadan kini tersimpan di SETTINGS.periodeRamadan dan bisa diubah
    dari Pengaturan › Pengaturan Jadwal. RAMADAN_RANGES lama hanya fallback
@@ -1066,6 +1079,7 @@ function saveStore(){
   try{
     localStorage.setItem(STORE_KEY, JSON.stringify({ v:1, dataMode:dataMode, profile:PROFILE, settings:SETTINGS, rhks:RHKS, libur:LIBUR,
       entries: ENTRIES.map(e=>Object.assign({}, e, {files:cleanFiles(e.files)})),
+      usage: USAGE_LOG,
       entrySeq:entrySeq, skorPattern:SKOR_PATTERN, ui:UI_STATE }));
   }catch(err){}
   updateStorageStatus();
@@ -1075,7 +1089,7 @@ function loadStore(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
   if (s.profile) PROFILE = lengkapiProfil(s.profile);
-  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 }, s.settings);
+  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0, batasBiaya:"", biayaWarned:{} }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
      sesi PIN lama dibuang karena tidak berlaku di Worker — pengguna masuk
@@ -1095,6 +1109,7 @@ function loadStore(){
   if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"", mode:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", driveNama:f.driveNama||"", driveMime:f.driveMime||"", driveUkuran:f.driveUkuran||0, upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
   if (typeof s.entrySeq==="number" && s.entrySeq>entrySeq) entrySeq = s.entrySeq;
   if (s.skorPattern) SKOR_PATTERN = s.skorPattern;
+  if (Array.isArray(s.usage)) USAGE_LOG = s.usage.filter(u=>u && u.month && typeof u.cost==="number");
   if (s.ui){ UI_STATE = Object.assign({ acc:{}, cdTab:"rencana" }, s.ui); if (!UI_STATE.acc || typeof UI_STATE.acc!=="object") UI_STATE.acc = {}; }
   dataMode = s.dataMode==="custom" ? "custom" : "sample";
 }
@@ -1107,8 +1122,9 @@ function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
   PROFILE = { nama:"Ardian", nip:"", labelNip:"NIPPPK", pangkat:"", jabatan:"", unit:"", unitOrganisasi:"Universitas Islam Negeri Sulthan Thaha Saifuddin Jambi", atasan:"", nipAtasan:"", jabatanAtasan:"" };
-  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
+  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0, batasBiaya:"", biayaWarned:{} };
   LIBUR = [];
+  USAGE_LOG = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
   seedSample();
   initJadwal();
@@ -1174,6 +1190,22 @@ const TW4_HOLIDAYS = [
   {date:"2027-01-05", label:"Hari libur"}
 ];
 const TW4_HOL_SET = new Set(TW4_HOLIDAYS.map(h=>h.date));
+/* Hari kerja Triwulan IV yang BELUM punya entri: pindai 1 Oktober 2026
+   sampai hari ini; hanya Senin–Jumat, dikurangi libur/cuti menurut
+   Pengaturan Jadwal (LIBUR — termasuk preload 24–25 Des 2026, 1 Jan
+   2027, 5 Jan 2027). Penanda WFH tidak mengeluarkan hari — WFH tetap
+   hari kerja. Sumbernya entri lokal di perangkat ini. */
+function hariBelumDicatat(){
+  const out = [];
+  const ada = new Set(ENTRIES.map(e=>e.date));
+  const d = parseKey("2026-10-01");
+  while (d <= TODAY){
+    const k = dkey(d);
+    if (isWorkday(d) && !liburCutiOn(k) && !ada.has(k)) out.push(k);
+    d.setDate(d.getDate()+1);
+  }
+  return out;
+}
 function tw4WorkdaysLeft(targetK){
   const target = parseKey(targetK);
   if (TODAY > target) return 0;
@@ -1207,10 +1239,12 @@ function renderCountdown(){
    panel terlihat dalam satu waktu, pilihan tab tersimpan per perangkat. */
 function renderCdPanel(){
   const el = $("#cdPanel"); if(!el) return;
-  const tab = UI_STATE.cdTab==="libur" ? "libur" : "rencana";
-  let h = '<div class="cdseg" role="tablist" aria-label="Rencana catat dan libur dikeluarkan">'
+  const tab = UI_STATE.cdTab==="libur" ? "libur" : UI_STATE.cdTab==="kosong" ? "kosong" : "rencana";
+  const kosongList = hariBelumDicatat();
+  let h = '<div class="cdseg" role="tablist" aria-label="Rencana catat, libur dikeluarkan, dan hari yang belum dicatat">'
     + '<button type="button" role="tab" aria-selected="'+(tab==="rencana")+'" data-cdtab="rencana" class="'+(tab==="rencana"?"on":"")+'">Rencana catat</button>'
-    + '<button type="button" role="tab" aria-selected="'+(tab==="libur")+'" data-cdtab="libur" class="'+(tab==="libur"?"on":"")+'">Libur dikeluarkan</button></div>';
+    + '<button type="button" role="tab" aria-selected="'+(tab==="libur")+'" data-cdtab="libur" class="'+(tab==="libur"?"on":"")+'">Libur dikeluarkan</button>'
+    + '<button type="button" role="tab" aria-selected="'+(tab==="kosong")+'" data-cdtab="kosong" class="'+(tab==="kosong"?"on":"")+'">Belum dicatat'+(kosongList.length ? ' ('+kosongList.length+')' : '')+'</button></div>';
   if (tab==="rencana"){
     h += '<div class="cdtabpanel">';
     if (!RHKS.length){
@@ -1230,13 +1264,28 @@ function renderCdPanel(){
       }).join("");
     }
     h += '</div>';
-  } else {
+  } else if (tab==="libur") {
     h += '<div class="cdtabpanel"><ul class="hollist">'
       + TW4_HOLIDAYS.map(x=>'<li><span class="dt">'+esc(fmtTglPanjang(x.date))+'</span><span class="lb">'+esc(x.label)+'</span></li>').join("")
       + '</ul><p class="small muted" style="margin:6px 0 0">Sabtu &amp; Minggu juga tidak dihitung. Libur/cuti lain yang Anda tandai sendiri di Pengaturan Jadwal tidak mengubah hitungan panel ini.</p></div>';
+  } else {
+    h += '<div class="cdtabpanel">';
+    if (!kosongList.length){
+      h += '<p class="small muted" style="margin:8px 0 0">Semua hari kerja Triwulan IV sejak 1 Oktober 2026 sampai hari ini sudah punya entri — tidak ada hari kerja yang kosong.</p>';
+    } else {
+      h += '<p class="small muted" style="margin:6px 0 2px"><b style="color:var(--ink)">'+kosongList.length+' hari kerja</b> sejak 1 Oktober 2026 belum punya entri — hanya Senin–Jumat, di luar libur/cuti menurut Pengaturan Jadwal. Ketuk <b style="color:var(--ink)">Catat</b> untuk mengisi tanggal itu; entri di tanggal lain tidak berubah.</p>';
+      let bln = "";
+      kosongList.forEach(k=>{
+        const d = parseKey(k); const bk = BULAN[d.getMonth()]+" "+d.getFullYear();
+        if (bk!==bln){ bln = bk; h += '<div class="secttl" style="margin:12px 0 0;font-size:13px">'+esc(bk)+'</div>'; }
+        h += '<div class="planrow"><div class="rowflex"><span class="nm grow">'+esc(fmtTglPanjang(k))+(k===TODAY_K ? ' · hari ini' : '')+'</span><button class="btn ghost" type="button" data-catat-tgl="'+k+'" style="width:auto;min-height:40px;padding:6px 16px">Catat</button></div></div>';
+      });
+    }
+    h += '</div>';
   }
   el.innerHTML = h;
   el.querySelectorAll("[data-cdtab]").forEach(b=>b.addEventListener("click", ()=>{ UI_STATE.cdTab = b.dataset.cdtab; saveStore(); renderCdPanel(); }));
+  el.querySelectorAll("[data-catat-tgl]").forEach(b=>b.addEventListener("click", ()=>openCatat("ketik", b.dataset.catatTgl)));
   const wz = el.querySelector("#cdWizard"); if (wz) wz.addEventListener("click", ()=>openWizard(0));
 }
 /* ---------------- Akordion ----------------
@@ -1245,7 +1294,7 @@ function renderCdPanel(){
    jadwal, dan rekap terbuka; grafik mingguan & penjelasan panjang terlipat.
    Di Pengaturan semua kartu juga akordion: Koneksi (setKoneksi) terbuka
    bawaan karena paling sering dibutuhkan; kartu lain terlipat bawaan. */
-const ACC_DEFAULTS = { todayEntries:true, dayEntries:true, rekap:true, jadwal:true, week:false, tentang:false, setKoneksi:true, setJadwal:false, setRhkMeta:false, setAiDiag:false, setDrive:false, setEviden:false, setData:false };
+const ACC_DEFAULTS = { todayEntries:true, dayEntries:true, rekap:true, jadwal:true, week:false, tentang:false, setKoneksi:true, setJadwal:false, setRhkMeta:false, setAiDiag:false, setBiaya:true, setDrive:false, setEviden:false, setData:false };
 function accOpen(key){
   const v = UI_STATE.acc[key];
   return v===undefined ? ACC_DEFAULTS[key]!==false : !!v;
@@ -1320,12 +1369,21 @@ function entryRow(e, extraTag){
 function bindEntryRows(scope){
   scope.querySelectorAll("[data-entry]").forEach(b=>b.addEventListener("click", ()=>{ openEntry(Number(b.dataset.entry)); }));
 }
+/* Nama untuk sapaan: hanya nama profil yang diisi pengguna sendiri.
+   Nama kosong/belum diisi — termasuk profil contoh "Ardian" pada mode
+   data contoh — tampil generik "Insan ASN"; nama yang dikosongkan di
+   wizard/pengaturan tidak pernah jatuh kembali ke nama contoh. */
+function namaSapaan(){
+  const n = (PROFILE.nama||"").trim();
+  if (dataMode==="sample" || !n) return "Insan ASN";
+  return n;
+}
 function renderToday(){
   const h=TODAY.getHours();
   const sapa = h<11 ? "Pagi" : h<15 ? "Siang" : h<19 ? "Sore" : "Malam";
-  $("#greetName").textContent = sapa+", "+(PROFILE.nama||"Ardian");
+  $("#greetName").textContent = sapa+", "+namaSapaan();
   renderSyncChip(); hideSyncNudgeIfSynced();
-  $("#avatarInit").textContent = (PROFILE.nama||"A").trim().charAt(0).toUpperCase();
+  $("#avatarInit").textContent = namaSapaan().charAt(0).toUpperCase();
   $("#todayLabel").textContent = fmtTglPanjang(TODAY_K);
   const q=quarterInfo();
   $("#daysLeft").textContent = q.days;
@@ -2002,6 +2060,73 @@ function recordAiDiag(model, status, http, ms){
   SETTINGS.lastAiDiag = { waktu:new Date().toLocaleString("id-ID"), model:model, status:status, http:http||0, ms:ms||0 };
   try{ saveStore(); }catch(_){}
 }
+/* ---------------- Penjaga biaya AI (Gemini) ----------------
+   Biaya SELALU dihitung dari pemakaian nyata: usageMetadata yang
+   dikembalikan Gemini pada setiap panggilan pencatatan (token masuk &
+   keluar), dikalikan tarif resmi per 1 juta token di bawah. Tidak ada
+   angka tebakan — bila belum ada pencatatan AI, tampilannya "belum ada
+   data". Log pemakaian tersimpan lokal di store yang sama (USAGE_LOG).
+   Tarif (USD per 1 jt token, masuk/keluar):
+   · gemini-3.5-flash-lite $0,30 / $2,50
+   · gemini-3.1-flash-lite $0,25 / $1,50
+   · gemini-3.8-flash $0,75 / $3,75 sampai 31 Des 2026, lalu
+     $1,50 / $7,50 mulai 1 Jan 2027 (dipilih menurut tanggal pemakaian). */
+const TARIF_AI = {
+  "gemini-3.5-flash-lite": { masuk:0.30, keluar:2.50 },
+  "gemini-3.1-flash-lite": { masuk:0.25, keluar:1.50 },
+  "gemini-3.8-flash": { masuk:0.75, keluar:3.75, mulaiBaru:"2027-01-01", masukBaru:1.50, keluarBaru:7.50 }
+};
+function tarifAi(model, dateK){
+  const t = TARIF_AI[model]; if (!t) return null;
+  if (t.mulaiBaru && (dateK||TODAY_K) >= t.mulaiBaru) return { masuk:t.masukBaru, keluar:t.keluarBaru };
+  return { masuk:t.masuk, keluar:t.keluar };
+}
+function biayaPanggilan(model, inTok, outTok, dateK){
+  const t = tarifAi(model, dateK); if (!t) return 0;
+  return ((inTok||0)*t.masuk + (outTok||0)*t.keluar) / 1000000;
+}
+function fmtUSD(v){ const n = Number(v)||0; return "$" + (n>=1 ? n.toFixed(2) : n.toFixed(4)).replace(".", ","); }
+function fmtToken(n){ return Number(n||0).toLocaleString("id-ID"); }
+function bulanKey(dateK){ return (dateK||TODAY_K).slice(0,7); }
+function namaBulanKey(mk){ const p = String(mk||"").split("-"); const m = Number(p[1]); return (m>=1 && m<=12 ? BULAN[m-1] : mk) + " " + (p[0]||""); }
+function totalBiayaBulan(mk){ return USAGE_LOG.filter(u=>u.month===mk).reduce((a,u)=>a+(Number(u.cost)||0),0); }
+function batasBiayaVal(){ const v = parseFloat(String(SETTINGS.batasBiaya==null ? "" : SETTINGS.batasBiaya).replace(",", ".")); return isFinite(v) && v>0 ? v : 0; }
+function catatPemakaian(model, inTok, outTok, dateK){
+  const tgl = dateK || TODAY_K;
+  const rec = { ts:new Date().toISOString(), date:tgl, month:bulanKey(tgl), model:model, inTok:inTok||0, outTok:outTok||0, cost:biayaPanggilan(model, inTok||0, outTok||0, tgl) };
+  USAGE_LOG.push(rec);
+  try{ saveStore(); }catch(_){}
+  cekPeringatanBiaya();
+  return rec;
+}
+/* Peringatan penjaga biaya: muncul SEBELUM batas terlampaui (saat
+   pemakaian mencapai 80% dari batas) dan sekali lagi saat batas
+   terlampaui (100%). Ambang yang sudah diperingatkan dicatat per bulan
+   di SETTINGS.biayaWarned, jadi peringatan yang sama tidak diulang.
+   Bila batas belum diisi, penjaga belum aktif — tidak ada peringatan. */
+function cekPeringatanBiaya(){
+  const batas = batasBiayaVal(); if (!batas) return;
+  const mk = bulanKey(TODAY_K);
+  const total = totalBiayaBulan(mk);
+  const pct = total/batas*100;
+  if (!SETTINGS.biayaWarned || typeof SETTINGS.biayaWarned!=="object") SETTINGS.biayaWarned = {};
+  const sudah = Array.isArray(SETTINGS.biayaWarned[mk]) ? SETTINGS.biayaWarned[mk].slice() : [];
+  let pesan = "";
+  if (pct>=100 && !sudah.includes(100)){ sudah.push(100); pesan = "Penjaga biaya: batas AI bulan ini TERLAMPAUI — "+fmtUSD(total)+" dari batas "+fmtUSD(batas)+"."; }
+  else if (pct>=80 && !sudah.includes(80)){ sudah.push(80); pesan = "Penjaga biaya: pemakaian AI bulan ini sudah "+Math.round(pct)+"% dari batas ("+fmtUSD(total)+" dari "+fmtUSD(batas)+") — mendekati batas bulanan Anda."; }
+  if (pesan){ SETTINGS.biayaWarned[mk] = sudah; try{ saveStore(); }catch(_){} toast(pesan); }
+}
+/* Urutan model menurut pilihan pemrosesan di lembar catat:
+   "lite" mendahulukan Flash-Lite (tugas ringan, lebih hemat);
+   "flash38" mendahulukan gemini-3.8-flash — pencatatan yang butuh
+   model itu tetap memakainya. Urutan failover biasa menjadi cadangan
+   bila model pilihan sedang bermasalah. */
+function modelOrderFor(mode){
+  const base = modelOrder();
+  if (mode==="lite"){ return base.filter(m=>m.indexOf("flash-lite")>=0).concat(base.filter(m=>m.indexOf("flash-lite")<0)); }
+  if (mode==="flash38"){ return ["gemini-3.8-flash"].concat(base.filter(m=>m!=="gemini-3.8-flash")); }
+  return base;
+}
 /* Cek format kunci SEBELUM menghubungi Google. AI Studio menerbitkan DUA format yang sama-sama sah:
    kunci lama berawalan "AIza…" dan kunci autentikasi baru berawalan "AQ." (dengan titik, mis. "AQ.Ab8…").
    Keduanya diterima di sini — jangan menolak "AQ." sebagai bukan kunci AI Studio.
@@ -2110,7 +2235,8 @@ async function geminiProcess(text, opts){
   if (imgN) parts[0].text += "\nFoto kegiatan terlampir — pakai juga sebagai petunjuk uraian & pencocokan, hanya bila relevan.";
   const body = { contents:[{ parts }], generationConfig:{ responseMimeType:"application/json", responseSchema:{ type:"OBJECT", properties:{ uraian:{type:"STRING"}, realisasi:{type:"STRING"}, jumlah:{type:"NUMBER", nullable:true}, jamMulai:{type:"STRING", nullable:true}, jamSelesai:{type:"STRING", nullable:true}, rhkId:{type:"INTEGER", nullable:true}, aksi:{type:"STRING", nullable:true}, keyakinan:{type:"NUMBER", nullable:true} }, required:["uraian","realisasi"] } } };
   let data = null, lastErr = null;
-  for (const model of modelOrder()){
+  const urutanModel = modelOrderFor(opts.modelMode);
+  for (const model of urutanModel){
     try{ data = await geminiCall(model, body, key); break; }
     catch(err){
       lastErr = err; recordAiDiag(model, labelDiagGemini(err), err.http||0, err.ms||0);
@@ -2120,6 +2246,13 @@ async function geminiProcess(text, opts){
   }
   if (!data) throw lastErr || new Error("gemini-fail");
   recordAiDiag(data.__meta.model, "OK", data.__meta.http, data.__meta.ms);
+  /* Pemakaian nyata dari jawaban Gemini: token keluar = total − masuk
+     (mencakup token jawaban + token berpikir yang memang ditagihkan
+     sebagai token keluar). Dicatat ke log penjaga biaya. */
+  const um = data.usageMetadata || {};
+  const inTok = Number(um.promptTokenCount||0);
+  const outTok = Math.max(0, Number(um.totalTokenCount||0) - inTok) || Number(um.candidatesTokenCount||0);
+  const usageRec = catatPemakaian(data.__meta.model, inTok, outTok, opts.dateK);
   const raw = data.candidates && data.candidates[0] && data.candidates[0].content && data.candidates[0].content.parts ? data.candidates[0].content.parts.map(p=>p.text||"").join("") : "";
   let j = null; try{ j = JSON.parse(raw); }catch(e){ const m = raw.match(/\{[\s\S]*\}/); if (m){ try{ j = JSON.parse(m[0]); }catch(_){} } }
   if (!j) throw new Error("json-invalid");
@@ -2131,7 +2264,7 @@ async function geminiProcess(text, opts){
     if (!aksi) aksi = r.aksi[0];
   }
   let jumlah = (typeof j.jumlah==="number" && isFinite(j.jumlah) && j.jumlah>=0) ? Math.round(j.jumlah) : 1;
-  return { uraian:String(j.uraian||"").trim(), realisasi:String(j.realisasi||"").trim(), jumlah, start:validTime(j.jamMulai), end:validTime(j.jamSelesai), rhk, aksi, keyakinan:(typeof j.keyakinan==="number" ? Math.round(j.keyakinan) : null), via:"gemini", model:data.__meta.model };
+  return { uraian:String(j.uraian||"").trim(), realisasi:String(j.realisasi||"").trim(), jumlah, start:validTime(j.jamMulai), end:validTime(j.jamSelesai), rhk, aksi, keyakinan:(typeof j.keyakinan==="number" ? Math.round(j.keyakinan) : null), via:"gemini", model:data.__meta.model, usage:usageRec };
 }
 $("#catatText").addEventListener("input", updateMatch);
 
@@ -2290,6 +2423,8 @@ function draftValid(d){ return jamValid(d.start, d.end).ok; }
 function renderDrafts(aiNote){
   const area = $("#draftArea"); if(!area) return;
   if (!DRAFTS.length){ area.innerHTML=""; return; }
+  const totBiayaSesi = DRAFTS.reduce((a,d)=>a+((d.usage&&d.usage.cost)||0),0);
+  const biayaSesi = totBiayaSesi>0 ? '<p class="small" style="margin-top:8px">Total biaya AI pemrosesan ini: <b>'+fmtUSD(totBiayaSesi)+'</b> · total bulan berjalan <b>'+fmtUSD(totalBiayaBulan(bulanKey(TODAY_K)))+'</b>'+(batasBiayaVal() ? ' dari batas '+fmtUSD(batasBiayaVal()) : ' · batas bulanan belum diisi — atur di Pengaturan › Biaya AI')+'.</p>' : "";
   area.innerHTML = '<div class="secttl" style="margin-top:16px">Kartu draf — periksa dulu, belum tercatat</div>' + DRAFTS.map((d,i)=>{
     const r = d.rhk ? rhkById(d.rhk) : null;
     const v = jamValid(d.start, d.end);
@@ -2304,9 +2439,10 @@ function renderDrafts(aiNote){
       + '<div class="field"><label>RHK</label><select data-df="'+i+'" data-k="rhk"><option value="">— Belum dipetakan —</option>'+RHKS.map(x=>'<option value="'+x.id+'"'+(d.rhk===x.id?" selected":"")+'>RHK '+x.id+' — '+esc(x.name)+'</option>').join("")+'</select></div>'
       + '<div class="timerow"><div class="field"><label>Jam mulai *</label><input type="time" data-df="'+i+'" data-k="start" value="'+(d.start?d.start.replace(".",":"):"")+'"/></div><div class="field"><label>Jam selesai *</label><input type="time" data-df="'+i+'" data-k="end" value="'+(d.end?d.end.replace(".",":"):"")+'"/></div></div>'
       + '<p class="small" style="margin:10px 0 0">'+(v.ok ? 'Durasi terhitung dari jam: <b>'+fmtDurasi(dur)+'</b>' : '<span class="warnjam">⚠ '+esc(v.msg)+'.</span>')+(est ? ' Estimasi norma RHK: ±'+est+' mnt ('+(r.durasiStd)+' mnt × '+(d.jumlah||1)+' '+(r.satuan||"satuan")+') — jam tetap harus diisi sendiri, tidak dikarang.' : '')+'</p>'
+      + (d.usage ? '<p class="small" style="margin:8px 0 0">Pemakaian AI draf ini: <b>'+fmtToken(d.usage.inTok)+' token masuk · '+fmtToken(d.usage.outTok)+' token keluar</b> · biaya <b>'+fmtUSD(d.usage.cost)+'</b> <span class="muted">('+esc(d.usage.model)+')</span></p>' : (d.via!=="gemini" ? '<p class="small muted" style="margin:8px 0 0">Diproses lokal di perangkat — tanpa panggilan AI, tanpa biaya.</p>' : ''))
       + '</div>';
   }).join("")
-  + '<p class="small muted" style="margin-top:10px">* Mengikuti model Claude: tombol <b>Simpan draf</b> baru aktif bila jam mulai–selesai lengkap &amp; masuk akal di semua draf. Durasi selalu dihitung ulang dari jam oleh kode, bukan dipercaya dari AI.</p>'
+  + '<p class="small muted" style="margin-top:10px">* Mengikuti model Claude: tombol <b>Simpan draf</b> baru aktif bila jam mulai–selesai lengkap &amp; masuk akal di semua draf. Durasi selalu dihitung ulang dari jam oleh kode, bukan dipercaya dari AI.</p>' + biayaSesi
   + '<div style="display:flex;gap:10px;margin-top:10px"><button class="btn plain" id="draftCancel" style="flex:1;min-height:48px">Batal</button><button class="btn primary" id="draftSave" style="flex:1.4;width:auto">Simpan draf</button></div>';
   area.querySelectorAll("[data-df]").forEach(inp=>{
     const applyVal = ()=>{ const d = DRAFTS[Number(inp.dataset.df)]; const k = inp.dataset.k;
@@ -2369,7 +2505,7 @@ $("#saveEntry").addEventListener("click", async ()=>{
     if ((SETTINGS.geminiKey||"").trim()){
       renderAiStatus("proses");
       try{
-        f = await geminiProcess(seg, { dateK: sheetDate, files: segments.length===1 ? sheetFiles : [], manualRhk: (typeof manual==="number" ? manual : null) });
+        f = await geminiProcess(seg, { dateK: sheetDate, files: segments.length===1 ? sheetFiles : [], manualRhk: (typeof manual==="number" ? manual : null), modelMode: ($("#modelModeSel") ? $("#modelModeSel").value : "auto") });
         if (manual!==undefined){ if (manual===""){ f.rhk = null; f.aksi = ""; } else { const r = rhkById(manual); f.rhk = r.id; if (!r.aksi.includes(f.aksi)) f.aksi = r.aksi[0]; } }
       }catch(err){ f = null; geminiFail = err; }
     }
@@ -2383,7 +2519,7 @@ $("#saveEntry").addEventListener("click", async ()=>{
     const rr = f.rhk ? rhkById(f.rhk) : null;
     drafts.push({ uraian:f.uraian || seg, realisasi:f.realisasi || "", jumlah:(f.jumlah!=null?f.jumlah:1), satuan: rr? (rr.satuan||"") : "",
       start: manualStart || f.start || "", end: manualEnd || f.end || "",
-      rhk:f.rhk, aksi:f.aksi, keyakinan:f.keyakinan, via:f.via, model:f.model||"" });
+      rhk:f.rhk, aksi:f.aksi, keyakinan:f.keyakinan, via:f.via, model:f.model||"", usage:f.usage||null });
   }
   btn.disabled = false; btn.textContent = "Proses & buat draf";
   renderAiStatus();
@@ -2414,7 +2550,7 @@ function renderSettings(){
   ).join("") + '<button class="btn primary" id="openWizard" style="margin-top:16px">Buka wizard konfigurasi awal</button>';
   $$("#setList [data-wiz]").forEach(b=>b.addEventListener("click", ()=>openWizard(Number(b.dataset.wiz))));
   $("#openWizard").addEventListener("click", ()=>openWizard(0));
-  renderRhkMeta(); renderJadwalSettings(); renderAiDiag(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
+  renderRhkMeta(); renderJadwalSettings(); renderAiDiag(); renderBiayaCard(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
   updateStorageStatus();
   applyAccordions();
 }
@@ -2442,6 +2578,90 @@ function renderAiDiag(){
     + (d ? '<p class="small" style="margin:10px 0 0">Panggilan AI terakhir: <b>'+esc(d.waktu)+'</b> · model <b>'+esc(d.model)+'</b> · status <b>'+esc(d.status)+'</b>'+(d.http?' · HTTP '+d.http:'')+(d.ms?' · '+d.ms+' md':'')+'</p>' : '<p class="small muted" style="margin:10px 0 0">Belum ada panggilan AI tercatat di perangkat ini.</p>');
   wrapCardAcc(z, "setAiDiag");
   $("#modelSel").addEventListener("change", e=>{ SETTINGS.modelUtama = e.target.value; saveStore(); renderAiDiag(); toast("Model utama: "+e.target.value); });
+}
+/* Strip biaya di Hari ini: total bulan berjalan dari pemakaian nyata,
+   status terhadap batas, dan keadaan jujur "belum ada data" bila belum
+   ada satu pun pencatatan AI yang tercatat di perangkat ini. */
+function renderBiayaStrip(){
+  const el = $("#costStrip"); if(!el) return;
+  const mk = bulanKey(TODAY_K);
+  const recs = USAGE_LOG.filter(u=>u.month===mk);
+  const batas = batasBiayaVal();
+  let h = '<div class="rowflex"><b class="grow" style="font-size:15px">Biaya AI bulan ini</b>';
+  if (!USAGE_LOG.length){
+    h += '</div><p class="small muted" style="margin:6px 0 0">Belum ada pencatatan AI yang tercatat di perangkat ini — <b style="color:var(--ink)">belum ada data</b> pemakaian &amp; biaya. Angka biaya hanya muncul dari pemakaian Gemini nyata saat Anda mencatat.</p>'
+      + (batas ? '<p class="small muted" style="margin:6px 0 0">Batas bulanan '+fmtUSD(batas)+' sudah terisi — penjaga peringatan aktif.</p>' : '<p class="small muted" style="margin:6px 0 0">Batas bulanan belum diisi — penjaga peringatan belum aktif sampai batas diisi di Pengaturan.</p>');
+  } else if (!recs.length){
+    h += '</div><p class="small muted" style="margin:6px 0 0">Belum ada pemakaian AI tercatat di '+esc(namaBulanKey(mk))+'.</p>'
+      + (batas ? '' : '<p class="small muted" style="margin:6px 0 0">Batas bulanan belum diisi — penjaga peringatan belum aktif sampai batas diisi di Pengaturan.</p>');
+  } else {
+    const total = recs.reduce((a,u)=>a+(Number(u.cost)||0),0);
+    const inT = recs.reduce((a,u)=>a+(Number(u.inTok)||0),0), outT = recs.reduce((a,u)=>a+(Number(u.outTok)||0),0);
+    h += '<span class="chip '+(batas && total>=batas ? "red" : batas && total>=batas*0.8 ? "amber" : "green")+'">'+fmtUSD(total)+'</span></div>'
+      + '<p class="small muted" style="margin:6px 0 0">'+recs.length+' pencatatan AI · '+fmtToken(inT)+' token masuk · '+fmtToken(outT)+' token keluar.</p>';
+    if (batas){
+      const pct = Math.min(100, Math.round(total/batas*100));
+      h += '<div class="costbar"><i style="width:'+pct+'%;background:'+(total>=batas ? "var(--red)" : total>=batas*0.8 ? "var(--amber-dot)" : "var(--emerald)")+'"></i></div>'
+        + '<p class="small" style="margin:6px 0 0">'+(total>=batas ? '<b style="color:var(--red)">Batas bulanan terlampaui</b>' : total>=batas*0.8 ? '<b style="color:var(--amber)">Mendekati batas bulanan</b>' : 'Terpakai '+pct+'% dari batas')+' · batas '+fmtUSD(batas)+'.</p>';
+    } else {
+      h += '<p class="small muted" style="margin:6px 0 0">Batas bulanan belum diisi — penjaga peringatan belum aktif sampai batas diisi di Pengaturan.</p>';
+    }
+  }
+  h += '<button class="btn ghost" id="costSetBtn" type="button" style="width:100%;margin-top:12px;min-height:44px">Atur batas &amp; lihat rincian biaya</button>';
+  el.innerHTML = h;
+  $("#costSetBtn").addEventListener("click", ()=>{ show("set"); renderSettings(); });
+}
+/* Kartu Pengaturan penjaga biaya: rincian bulan berjalan per model,
+   total bulan-bulan sebelumnya, tarif yang dipakai, dan pengatur batas
+   bulanan. Penjaga peringatan hanya aktif bila batas terisi. */
+function renderBiayaCard(){
+  const z = $("#biayaCard"); if(!z) return;
+  const mk = bulanKey(TODAY_K);
+  const recs = USAGE_LOG.filter(u=>u.month===mk);
+  const batas = batasBiayaVal();
+  let h = '<h3>Biaya AI &amp; batas bulanan</h3>'
+    + '<p class="small muted" style="margin:0">Biaya dihitung dari <b style="color:var(--ink)">pemakaian token nyata</b> yang dikembalikan Gemini pada setiap pencatatan, dikalikan tarif resmi per 1 juta token: 3.5 Flash-Lite $0,30 masuk / $2,50 keluar · 3.1 Flash-Lite $0,25 / $1,50 · 3.8 Flash $0,75 / $3,75 sampai 31 Des 2026, lalu $1,50 / $7,50 mulai 1 Jan 2027. Pencocokan lokal di perangkat tidak memakai AI — tidak ada biaya. Log pemakaian tersimpan lokal di perangkat ini.</p>';
+  if (!USAGE_LOG.length){
+    h += '<p class="small" style="margin:12px 0 0"><b>Belum ada data.</b> Belum ada pencatatan AI yang tercatat di perangkat ini, jadi belum ada angka pemakaian maupun biaya yang bisa ditampilkan — tidak ada angka tebakan di sini.</p>';
+  } else {
+    const total = recs.reduce((a,u)=>a+(Number(u.cost)||0),0);
+    const inT = recs.reduce((a,u)=>a+(Number(u.inTok)||0),0), outT = recs.reduce((a,u)=>a+(Number(u.outTok)||0),0);
+    h += '<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:12px"><b>'+esc(namaBulanKey(mk))+'</b>'
+      + (recs.length
+        ? '<p class="small" style="margin:6px 0 0">Total biaya: <b>'+fmtUSD(total)+'</b> dari '+recs.length+' pencatatan AI · '+fmtToken(inT)+' token masuk · '+fmtToken(outT)+' token keluar.</p>'
+        : '<p class="small muted" style="margin:6px 0 0">Belum ada pemakaian AI tercatat bulan ini.</p>');
+    const perModel = {};
+    recs.forEach(u=>{ const p = perModel[u.model] || (perModel[u.model]={n:0,inTok:0,outTok:0,cost:0}); p.n++; p.inTok+=Number(u.inTok)||0; p.outTok+=Number(u.outTok)||0; p.cost+=Number(u.cost)||0; });
+    h += Object.keys(perModel).map(m=>{ const p = perModel[m]; return '<div class="rowflex" style="padding:8px 0;border-top:1px solid var(--line)"><span class="grow small"><b>'+esc(m)+'</b><br/><span class="muted">'+p.n+' pencatatan · '+fmtToken(p.inTok)+' masuk · '+fmtToken(p.outTok)+' keluar</span></span><b>'+fmtUSD(p.cost)+'</b></div>'; }).join("");
+    h += '</div>';
+    const bulanLain = Array.from(new Set(USAGE_LOG.map(u=>u.month))).filter(m=>m!==mk).sort().reverse();
+    if (bulanLain.length){
+      h += '<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:10px"><b class="small">Bulan sebelumnya</b>'
+        + bulanLain.map(m=>'<div class="rowflex" style="padding:6px 0"><span class="grow small muted">'+esc(namaBulanKey(m))+'</span><b class="small">'+fmtUSD(totalBiayaBulan(m))+'</b></div>').join("") + '</div>';
+    }
+  }
+  if (batas){
+    const total = totalBiayaBulan(mk);
+    const pct = Math.min(100, Math.round(total/batas*100));
+    h += '<div class="costbar"><i style="width:'+pct+'%;background:'+(total>=batas ? "var(--red)" : total>=batas*0.8 ? "var(--amber-dot)" : "var(--emerald)")+'"></i></div>'
+      + '<p class="small" style="margin:6px 0 0">Terpakai <b>'+fmtUSD(total)+'</b> dari batas <b>'+fmtUSD(batas)+'</b> bulan ini ('+pct+'%).</p>';
+  }
+  h += '<div class="field"><label for="batasBiayaInp">Batas biaya bulanan (USD)</label><input id="batasBiayaInp" type="number" min="0" step="0.5" inputmode="decimal" value="'+(batas ? batas : "")+'" placeholder="cth. 5 — kosongkan bila belum menetapkan"/></div>'
+    + '<p class="small muted" style="margin:6px 0 0">' + (batas
+      ? 'Penjaga <b style="color:var(--ink)">aktif</b>: peringatan muncul saat pemakaian mencapai 80% dari batas (sebelum terlampaui) dan sekali lagi saat batas terlampaui — peringatan yang sama tidak diulang dalam bulan yang sama.'
+      : 'Penjaga peringatan <b style="color:var(--ink)">belum aktif</b> — ia baru bekerja setelah batas bulanan diisi di sini.') + '</p>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn primary" id="batasSave" type="button" style="flex:1;min-height:46px">Simpan batas</button>'
+    + (batas ? '<button class="btn plain" id="batasClear" type="button" style="flex:1;min-height:46px">Hapus batas</button>' : '') + '</div>';
+  z.innerHTML = h;
+  wrapCardAcc(z, "setBiaya");
+  $("#batasSave").addEventListener("click", ()=>{
+    const v = parseFloat(($("#batasBiayaInp").value||"").replace(",", "."));
+    if (!isFinite(v) || v<=0){ toast("Isi batasnya dulu dalam USD, cth. 5 — atau hapus batas untuk menonaktifkan penjaga"); return; }
+    SETTINGS.batasBiaya = v; saveStore(); renderSettings(); renderAll();
+    toast("Batas biaya bulanan tersimpan: "+fmtUSD(v)+" — penjaga peringatan aktif");
+  });
+  const bc = $("#batasClear");
+  if (bc) bc.addEventListener("click", ()=>{ SETTINGS.batasBiaya = ""; saveStore(); renderSettings(); renderAll(); toast("Batas dihapus — penjaga peringatan nonaktif"); });
 }
 function renderDriveFolderCard(){
   const z = $("#driveFolderCard"); if (!z) return;
@@ -2726,7 +2946,7 @@ $("#wizNext").addEventListener("click", ()=>{
   saveStore();
   $("#sampleBanner").style.display = dataMode==="sample" ? "" : "none";
   show("today"); renderAll();
-  toast("Pengaturan tersimpan di perangkat ini. Selamat bekerja, "+(PROFILE.nama||"")+"!");
+  toast("Pengaturan tersimpan di perangkat ini. Selamat bekerja, "+namaSapaan()+"!");
 });
 $("#gearBtn").addEventListener("click", ()=>{ show("set"); renderSettings(); });
 $("#syncChip").addEventListener("click", ()=>{
@@ -3859,7 +4079,7 @@ function renderGasCard(){
 }
 
 /* ---------------- Init ---------------- */
-function renderAll(){ renderToday(); renderCountdown(); renderCal(); renderRekap(); renderArsip(); }
+function renderAll(){ renderToday(); renderCountdown(); renderBiayaStrip(); renderCal(); renderRekap(); renderArsip(); }
 renderSheetFiles();
 checkSessionExpiry(); // pemicu boot: sesi tersimpan yang sudah lewat masa berlakunya langsung ketahuan
 initAccordions();
