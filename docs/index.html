@@ -625,12 +625,17 @@
           <div class="card" id="driveFolderCard"></div>
           <div class="card" id="evidenSetCard"></div>
           <div class="card">
-            <h3>Data di perangkat ini</h3>
-            <p class="small muted" id="storageStatus" style="margin:0 0 6px">—</p>
+            <button class="acchead" type="button" data-acc="setData" aria-expanded="false" style="width:100%" aria-label="Buka/tutup data di perangkat ini">
+              <span class="accttl">Data di perangkat ini</span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
+            <div class="accbody closed" data-accbody="setData">
+            <p class="small muted" id="storageStatus" style="margin:6px 0 6px">—</p>
             <p class="small muted" style="margin:0">Entri, RHK, profil, dan pengaturan — termasuk kunci GAS/Gemini, ID folder Drive tujuan eviden, dan token Telegram — tersimpan di localStorage perangkat ini dan dimuat lagi saat aplikasi dibuka. Lampiran tersimpan sebagai metadata (nama, ukuran, tipe) plus thumbnail kecil untuk foto; isi berkasnya perlu dilampirkan ulang setelah aplikasi dibuka kembali.</p>
             <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
               <button class="btn ghost" id="clearEntriesBtn" style="flex:1;min-height:46px">Kosongkan entri</button>
               <button class="btn danger" id="resetSampleBtn" style="flex:1;min-height:46px">Reset ke data contoh</button>
+            </div>
             </div>
           </div>
           <div class="card">
@@ -906,7 +911,17 @@ function backendKind(url){
 }
 
 /* ---------------- Profil & pengaturan (contoh) ---------------- */
-let PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
+let PROFILE = { nama:"Ardian", nip:"", labelNip:"NIPPPK", pangkat:"", jabatan:"", unit:"", unitOrganisasi:"Universitas Islam Negeri Sulthan Thaha Saifuddin Jambi", atasan:"", nipAtasan:"", jabatanAtasan:"" };
+/* Nilai awal dua isian profil yang menyusul dari versi Claude (menu Data).
+   Hanya dipakai bila field-nya belum ada di profil tersimpan — nilai yang
+   sudah diisi pengguna tidak pernah ditimpa. Label NIP tampil di laporan di
+   depan nomor NIP; Unit organisasi menjadi nama universitas di kop laporan. */
+const PROFIL_BAWAAN = { labelNip:"NIPPPK", unitOrganisasi:"Universitas Islam Negeri Sulthan Thaha Saifuddin Jambi" };
+function lengkapiProfil(p){
+  if (p.labelNip == null) p.labelNip = PROFIL_BAWAAN.labelNip;
+  if (p.unitOrganisasi == null) p.unitOrganisasi = PROFIL_BAWAAN.unitOrganisasi;
+  return p;
+}
 let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
@@ -1059,7 +1074,7 @@ function loadStore(){
   let s=null;
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
-  if (s.profile) PROFILE = s.profile;
+  if (s.profile) PROFILE = lengkapiProfil(s.profile);
   if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
@@ -1091,7 +1106,7 @@ function armConfirm(btn, fn){
 function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
-  PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
+  PROFILE = { nama:"Ardian", nip:"", labelNip:"NIPPPK", pangkat:"", jabatan:"", unit:"", unitOrganisasi:"Universitas Islam Negeri Sulthan Thaha Saifuddin Jambi", atasan:"", nipAtasan:"", jabatanAtasan:"" };
   SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
   LIBUR = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
@@ -1227,11 +1242,32 @@ function renderCdPanel(){
 /* ---------------- Akordion ----------------
    Header selalu terlihat; isi dilipat/dibuka; keadaan tersimpan per
    perangkat lewat UI_STATE.acc di store yang sama. Bawaan: daftar entri,
-   jadwal, dan rekap terbuka; grafik mingguan & penjelasan panjang terlipat. */
-const ACC_DEFAULTS = { todayEntries:true, dayEntries:true, rekap:true, jadwal:true, week:false, tentang:false };
+   jadwal, dan rekap terbuka; grafik mingguan & penjelasan panjang terlipat.
+   Di Pengaturan semua kartu juga akordion: Koneksi (setKoneksi) terbuka
+   bawaan karena paling sering dibutuhkan; kartu lain terlipat bawaan. */
+const ACC_DEFAULTS = { todayEntries:true, dayEntries:true, rekap:true, jadwal:true, week:false, tentang:false, setKoneksi:true, setJadwal:false, setRhkMeta:false, setAiDiag:false, setDrive:false, setEviden:false, setData:false };
 function accOpen(key){
   const v = UI_STATE.acc[key];
   return v===undefined ? ACC_DEFAULTS[key]!==false : !!v;
+}
+function accHead(key, titleHtml){
+  return '<button class="acchead" type="button" data-acc="'+key+'" aria-expanded="true" style="width:100%" aria-label="Buka/tutup bagian pengaturan ini"><span class="accttl">'+titleHtml+'</span><span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span></button>';
+}
+/* Bungkus isi kartu hasil render menjadi akordion: judul diambil dari <h3>
+   pertama yang sudah dirender (isi, urutan & fungsi kartu tidak berubah),
+   sisanya dipindah ke badan akordion. Dipanggil tepat setelah innerHTML
+   kartu diisi, sebelum pengikatan tombol di dalamnya. */
+function wrapCardAcc(card, key){
+  if (!card || card.querySelector(":scope > [data-acc]")) return;
+  const h3 = card.querySelector(":scope > h3");
+  const title = h3 ? h3.innerHTML : "";
+  if (h3) h3.remove();
+  const body = document.createElement("div");
+  body.className = "accbody"; body.dataset.accbody = key;
+  while (card.firstChild) body.appendChild(card.firstChild);
+  card.insertAdjacentHTML("afterbegin", accHead(key, title));
+  card.appendChild(body);
+  applyAccordions();
 }
 function applyAccordions(){
   $$("[data-acc]").forEach(btn=>{
@@ -1241,12 +1277,17 @@ function applyAccordions(){
   });
 }
 function initAccordions(){
-  $$("[data-acc]").forEach(btn=>btn.addEventListener("click", ()=>{
+  /* Delegasi klik: header akordion kartu Pengaturan dibuat ulang setiap
+     render, jadi pengikatan per tombol akan lepas — satu pendengar di
+     dokumen melayani header statis maupun hasil render dinamis. */
+  document.addEventListener("click", e=>{
+    const btn = e.target && e.target.closest ? e.target.closest("[data-acc]") : null;
+    if (!btn) return;
     const key = btn.dataset.acc;
     UI_STATE.acc[key] = !accOpen(key);
     saveStore();
     applyAccordions();
-  }));
+  });
   applyAccordions();
 }
 function entryTags(e){
@@ -1442,6 +1483,7 @@ function renderJadwalSettings(){
     + '<label style="display:flex;gap:9px;align-items:center;margin-top:14px;font-size:15px;cursor:pointer"><input type="checkbox" id="liburLewat"'+(showPast?" checked":"")+' style="width:19px;height:19px;flex:none"/> Tampilkan yang sudah lewat</label>'
     + (list.length ? list.map(l=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+fmtTglPanjang(l.date)+'</b><br/><span class="small muted">'+esc(l.label)+' · '+jenisLabel(l.tipe)+(l.resmi?' (resmi)':'')+'</span></span><button class="linkbtn" data-libur-del="'+l.date+'" style="color:var(--red)">Hapus</button></div>').join("") : '<p class="small muted" style="margin-top:10px">'+(showPast ? "Belum ada hari libur/cuti yang ditandai." : "Tidak ada entri mendatang — centang “Tampilkan yang sudah lewat” untuk melihat semuanya.")+'</p>');
   el.innerHTML = h;
+  wrapCardAcc(el, "setJadwal");
   /* --- ikat WFH rutin --- */
   el.querySelector("#wfhSave").addEventListener("click", ()=>{
     const hasil = parseHariWfh(el.querySelector("#wfhInput").value);
@@ -2355,6 +2397,11 @@ $("#saveEntry").addEventListener("click", async ()=>{
 const WIZ_STEPS = ["Profil","Tempel RHK","Koneksi","Telegram","Selesai"];
 let wizStep = 0, wizDraft = null;
 function renderSettings(){
+  /* Sesi berakhir: kartu Koneksi dibuka otomatis agar tombol masuk lagi
+     langsung terlihat — status sesi tidak boleh tersembunyi di lipatan.
+     Dalam keadaan normal status sesi sudah tampil lewat chip & spanduk
+     di Hari ini, jadi melipat Koneksi aman. */
+  if (SETTINGS.sesiBerakhir && UI_STATE.acc.setKoneksi!==true){ UI_STATE.acc.setKoneksi = true; saveStore(); }
   const done = [PROFILE.nama, RHKS.length>0, SETTINGS.gasUrl||SETTINGS.geminiKey, SETTINGS.telegramOn];
   const items = [
     {t:"Profil pegawai", s: PROFILE.nama ? PROFILE.nama+(PROFILE.jabatan?" · "+PROFILE.jabatan:"") : "Belum diisi", step:0, ok:!!PROFILE.nama, ic:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'},
@@ -2369,6 +2416,7 @@ function renderSettings(){
   $("#openWizard").addEventListener("click", ()=>openWizard(0));
   renderRhkMeta(); renderJadwalSettings(); renderAiDiag(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
   updateStorageStatus();
+  applyAccordions();
 }
 function renderRhkMeta(){
   const z = $("#rhkMetaZone"); if(!z) return;
@@ -2378,6 +2426,7 @@ function renderRhkMeta(){
       + '<div class="field"><label>Aturan hitung</label><input data-rm="'+r.id+'" data-k="aturan" value="'+esc(r.aturan||"")+'" placeholder="cth. 1 permohonan = 1 layanan"/></div>'
       + '<div class="field"><label>Akses eviden bawaan</label><select data-rm="'+r.id+'" data-k="akses"><option value="link"'+(r.akses!=="privat"?" selected":"")+'>Siapa saja dengan link · hanya-lihat</option><option value="privat"'+(r.akses==="privat"?" selected":"")+'>Privat (data sensitif)</option></select></div></div>').join("")
     + '<button class="btn primary" id="rhkMetaSave" style="margin-top:14px;min-height:46px">Simpan pengaturan RHK</button></div>';
+  wrapCardAcc(z.querySelector(".card"), "setRhkMeta");
   $("#rhkMetaSave").addEventListener("click", ()=>{
     z.querySelectorAll("[data-rm]").forEach(inp=>{ const r = RHKS.find(x=>x.id===Number(inp.dataset.rm)); if(!r) return; const k = inp.dataset.k; r[k] = k==="durasiStd" ? Math.max(0, Number(inp.value)||0) : inp.value; });
     saveStore(); renderAll(); renderSettings(); toast("Satuan, aturan hitung & akses RHK tersimpan");
@@ -2391,6 +2440,7 @@ function renderAiDiag(){
     + '<p class="small muted" style="margin:0">Urutan failover (paling relevan &amp; lancar dulu, mengikuti bukti pemakaian versi Claude): <b>'+order.join(" → ")+'</b>. 3.5 Flash-Lite utama karena tercepat dan kuotanya paling longgar; 3.8 Flash terakhir karena paling lambat dan kuotanya paling kecil. Tiap model dicoba sekali; 503 diulang sekali; 429 (kuota habis) tidak diulang.</p>'
     + '<div class="field"><label for="modelSel">Model utama</label><select id="modelSel">'+AI_MODELS.map(m=>'<option value="'+m+'"'+(order[0]===m?" selected":"")+'>'+m+'</option>').join("")+'</select></div>'
     + (d ? '<p class="small" style="margin:10px 0 0">Panggilan AI terakhir: <b>'+esc(d.waktu)+'</b> · model <b>'+esc(d.model)+'</b> · status <b>'+esc(d.status)+'</b>'+(d.http?' · HTTP '+d.http:'')+(d.ms?' · '+d.ms+' md':'')+'</p>' : '<p class="small muted" style="margin:10px 0 0">Belum ada panggilan AI tercatat di perangkat ini.</p>');
+  wrapCardAcc(z, "setAiDiag");
   $("#modelSel").addEventListener("change", e=>{ SETTINGS.modelUtama = e.target.value; saveStore(); renderAiDiag(); toast("Model utama: "+e.target.value); });
 }
 function renderDriveFolderCard(){
@@ -2407,6 +2457,7 @@ function renderDriveFolderCard(){
     + (id ? '<button class="btn plain" id="setFolderClear" type="button" style="flex:1;min-height:46px">Pakai bawaan server</button>' : '')
     + '</div>'
     + '<p class="small muted" style="margin:10px 0 0">Cara: buat folder induknya di Drive Saya, buka folder itu, salin URL dari address bar, lalu tempel di sini — ID-nya terbaca otomatis. Bila memakai backend Worker, bagikan juga folder induk itu ke akun layanan Worker (akun “progresio-worker” yang selama ini membagikan folder LOG ke Anda) dengan peran <b style="color:var(--ink)">Editor</b>, agar Worker bisa membuat folder kegiatan di dalamnya. Mengganti folder hanya memengaruhi folder kegiatan yang dibuat setelahnya — folder LOG yang sudah ada tidak ikut berpindah.</p>';
+  wrapCardAcc(z, "setDrive");
   const inp = $("#setFolderInput"), hint = $("#setFolderHint");
   const upd = ()=>{
     const v = (inp.value||"").trim();
@@ -2433,6 +2484,7 @@ function renderEvidenSettings(){
     z.innerHTML = '<h3>Folder eviden yang terbuka via link — dari Drive (GAS)</h3>'
       + '<p class="small muted" style="margin:0">Daftar nyata dari Google Drive lewat GAS: folder kegiatan yang saat ini bisa dibuka “siapa saja dengan link, hanya-lihat”. “Tutup akses” menutupnya beneran di Drive dan menandai entrinya privat.</p>'
       + (GAS_FOLDERS.length ? GAS_FOLDERS.map(f=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+esc(f.nama||f.idLog)+'</b><br/><span class="small muted">'+esc(f.tanggal||"")+' · '+esc(f.idLog||"")+'</span><br/><a href="'+esc(f.url||"")+'" target="_blank" rel="noopener" class="small" style="color:var(--blue);word-break:break-all">'+esc(f.url||"")+'</a></span><button class="linkbtn" data-gas-close="'+esc(f.idLog||"")+'" style="color:var(--red)">Tutup akses</button></div>').join("") : '<p class="small muted" style="margin-top:10px">Tidak ada folder eviden yang terbuka di Drive saat ini.</p>');
+    wrapCardAcc(z, "setEviden");
     z.querySelectorAll("[data-gas-close]").forEach(b=>b.addEventListener("click", async ()=>{
       b.disabled = true;
       try{
@@ -2448,11 +2500,12 @@ function renderEvidenSettings(){
   z.innerHTML = '<h3>Folder eviden yang terbuka via link</h3>'
     + '<p class="small muted" style="margin:0">Folder per kegiatan yang bisa dibuka “siapa saja dengan link, hanya-lihat” demi e-Kinerja (folder induk tetap privat). Tutup akses bila isinya ternyata sensitif. Daftar ini penanda lokal di perangkat; bila sesi GAS aktif, daftar nyata dari Drive tampil di sini dan penutupannya berlaku beneran di Drive.</p>'
     + (open.length ? open.slice(0,10).map(e=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+esc(folderEviden(e))+'</b><br/><span class="small muted">'+esc(e.uraian)+'</span></span><button class="linkbtn" data-ev-close="'+e.id+'" style="color:var(--red)">Tutup akses</button></div>').join("") : '<p class="small muted" style="margin-top:10px">Tidak ada folder eviden terbuka saat ini.</p>');
+  wrapCardAcc(z, "setEviden");
   z.querySelectorAll("[data-ev-close]").forEach(b=>b.addEventListener("click", ()=>{ const e = ENTRIES.find(x=>x.id===Number(b.dataset.evClose)); if(e){ e.akses="privat"; saveStore(); renderAll(); renderSettings(); toast("Akses folder ditutup — kini privat"); } }));
 }
 function openWizard(step){
   wizStep = step||0;
-  wizDraft = { profile:Object.assign({},PROFILE), rhkText:"", settings:Object.assign({},SETTINGS), rhks: RHKS.map(r=>({id:r.id,name:r.name,aksi:r.aksi.slice(),kw:r.kw.slice(),satuan:r.satuan||"",aturan:r.aturan||"",durasiStd:r.durasiStd||60,akses:r.akses||"link"})) };
+  wizDraft = { profile:lengkapiProfil(Object.assign({},PROFILE)), rhkText:"", settings:Object.assign({},SETTINGS), rhks: RHKS.map(r=>({id:r.id,name:r.name,aksi:r.aksi.slice(),kw:r.kw.slice(),satuan:r.satuan||"",aturan:r.aturan||"",durasiStd:r.durasiStd||60,akses:r.akses||"link"})) };
   show("wizard"); renderWizard();
 }
 $("#wizClose").addEventListener("click", ()=>{ show("set"); renderSettings(); });
@@ -2464,14 +2517,23 @@ function renderWizard(){
   $("#wizNext").textContent = wizStep===4 ? "Selesai · mulai pakai" : "Lanjut";
   const b = $("#wizBody"); const d = wizDraft;
   if (wizStep===0){
-    b.innerHTML = '<div class="card"><h3>Profil pegawai</h3><p class="small muted" style="margin:0">Dipakai AI untuk menyesuaikan gaya bahasa laporan, dan tampil di kop ekspor.</p>'
+    b.innerHTML = '<div class="card"><h3>Profil pegawai</h3><p class="small muted" style="margin:0">Dipakai AI untuk menyesuaikan gaya bahasa laporan, dan tampil di kop ekspor &amp; laporan — Label NIP tampil di depan nomor NIP, Unit organisasi menjadi nama universitas di kopnya.</p>'
       + fld("Nama lengkap","p_nama",d.profile.nama,"cth. Ardian")
       + fld("NIP","p_nip",d.profile.nip,"cth. 1990xxxxxxxxxxxxxx")
+      + fld("Label NIP di laporan","p_labelnip",d.profile.labelNip,"cth. NIP atau NIPPPK")
       + '<div class="timerow">'+fld("Pangkat / Golongan","p_pangkat",d.profile.pangkat,"cth. Penata · III/c")+fld("Jabatan","p_jabatan",d.profile.jabatan,"cth. Analis …")+'</div>'
       + fld("Unit kerja","p_unit",d.profile.unit,"cth. Dinas …")
-      + fld("Nama atasan penilai","p_atasan",d.profile.atasan,"cth. Nama atasan")
+      + fld("Unit organisasi","p_unitorg",d.profile.unitOrganisasi,"cth. Universitas …")
+      + fld("Nama atasan","p_atasan",d.profile.atasan,"cth. Nama atasan")
+      + '<div class="timerow">'+fld("NIP atasan","p_nipatasan",d.profile.nipAtasan,"cth. 1970xxxxxxxxxxxxxx")+fld("Jabatan atasan","p_jabatanatasan",d.profile.jabatanAtasan,"cth. Kepala …")+'</div>'
+      + '<button class="btn primary" id="wizSaveProfile" type="button" style="margin-top:14px;min-height:46px">Simpan profil</button>'
       + '</div>';
     bindProfile();
+    $("#wizSaveProfile").addEventListener("click", ()=>{
+      PROFILE = lengkapiProfil(Object.assign({}, d.profile));
+      saveStore(); renderAll();
+      toast("Profil tersimpan — ikut terkirim ke server saat sinkron berikutnya");
+    });
   }
   if (wizStep===1){
     b.innerHTML = '<div class="card"><h3>Tempel rencana aksi dari e-Kinerja</h3><p class="small muted">Buka SKP di e-Kinerja, blok semua RHK + rencana aksi, salin, tempel di kotak ini.</p>'
@@ -2621,7 +2683,7 @@ function renderWizard(){
   function sw(label,id,on,sub){ return '<label class="switchrow"><span class="grow"><b style="font-size:15px">'+label+'</b><br/><span class="small muted">'+sub+'</span></span><span class="switch"><input type="checkbox" id="'+id+'"'+(on?" checked":"")+'/><span class="tr"></span></span></label>'; }
   function sumRow(k,v){ return '<div class="rowflex" style="padding:9px 0;border-top:1px solid var(--line)"><span class="muted small grow">'+k+'</span><b style="text-align:right">'+esc(v)+'</b></div>'; }
   function bindProfile(){
-    const map={p_nama:"nama",p_nip:"nip",p_pangkat:"pangkat",p_jabatan:"jabatan",p_unit:"unit",p_atasan:"atasan"};
+    const map={p_nama:"nama",p_nip:"nip",p_labelnip:"labelNip",p_pangkat:"pangkat",p_jabatan:"jabatan",p_unit:"unit",p_unitorg:"unitOrganisasi",p_atasan:"atasan",p_nipatasan:"nipAtasan",p_jabatanatasan:"jabatanAtasan"};
     Object.keys(map).forEach(id=>{ const el=document.getElementById(id); if(el) el.addEventListener("input", e=>{ d.profile[map[id]]=e.target.value; }); });
   }
 }
@@ -2658,7 +2720,7 @@ function renderParsedList(list, note){
 $("#wizPrev").addEventListener("click", ()=>{ if(wizStep>0){ wizStep--; renderWizard(); } });
 $("#wizNext").addEventListener("click", ()=>{
   if (wizStep<4){ wizStep++; renderWizard(); return; }
-  PROFILE = wizDraft.profile; RHKS = wizDraft.rhks.length? wizDraft.rhks : RHKS; SETTINGS = wizDraft.settings;
+  PROFILE = lengkapiProfil(wizDraft.profile); RHKS = wizDraft.rhks.length? wizDraft.rhks : RHKS; SETTINGS = wizDraft.settings;
   SETTINGS.driveFolderId = parseDriveFolderId(SETTINGS.driveFolderId||""); /* simpan ID foldernya saja, bukan URL tempelan mentah */
   if (wizDraft.rhkPasted){ if (dataMode==="sample") ENTRIES = []; dataMode = "custom"; }
   saveStore();
@@ -3063,8 +3125,8 @@ function entryToGas(e){
     akses: aksesEntry(e), sumber: e.src || "PWA", mode: e.mode || "" }; // mode = field tambahan payload (bukan bagian 7 kolom C–I)
 }
 function profilToGas(){
-  return { nama:PROFILE.nama||"", nip:PROFILE.nip||"", pangkat:PROFILE.pangkat||"", jabatan:PROFILE.jabatan||"",
-    unit:PROFILE.unit||"", atasan:PROFILE.atasan||"", nipAtasan:PROFILE.nipAtasan||"",
+  return { nama:PROFILE.nama||"", nip:PROFILE.nip||"", labelNip:(PROFILE.labelNip==null?PROFIL_BAWAAN.labelNip:PROFILE.labelNip), pangkat:PROFILE.pangkat||"", jabatan:PROFILE.jabatan||"",
+    unit:PROFILE.unit||"", unitOrganisasi:(PROFILE.unitOrganisasi==null?PROFIL_BAWAAN.unitOrganisasi:PROFILE.unitOrganisasi), atasan:PROFILE.atasan||"", nipAtasan:PROFILE.nipAtasan||"",
     jabatanAtasan:PROFILE.jabatanAtasan||"", email:PROFILE.email||"", zonaWaktu:PROFILE.zonaWaktu||"Asia/Jakarta" };
 }
 function rhkToGas(r){
@@ -3499,7 +3561,7 @@ async function syncNow(opts){
       if (hsl.status==="tersimpan"){ e.synced = true; rep.pushed++; } else rep.failed++;
     });
     const pull = await gasCall({ action:"syncPull" });
-    if (pull.profil && Object.keys(pull.profil).length) PROFILE = Object.assign({}, PROFILE, pull.profil);
+    if (pull.profil && Object.keys(pull.profil).length) PROFILE = lengkapiProfil(Object.assign({}, PROFILE, pull.profil));
     if (Array.isArray(pull.rhks) && pull.rhks.length){
       pull.rhks.forEach(sr=>{
         const mapped = { id:sr.id, name:sr.name||"", aksi:sr.aksi||[], kw:sr.kw||[], satuan:sr.satuan||"", aturan:sr.aturan||"", durasiStd:sr.durasiStd||0, akses:sr.akses||"link", targetKuantitas:(sr.targetKuantitas!=null ? sr.targetKuantitas : null), targetWaktu:sr.targetWaktu||"" };
@@ -3657,7 +3719,7 @@ function renderGasCard(){
   let h = '<h3>Koneksi '+(kind==="worker" ? "Worker" : kind==="gas" ? "GAS — Sheets &amp; Drive (Batch 2)" : "backend — Sheets &amp; Drive")+(kind==="worker" ? " — Sheets &amp; Drive" : "")+'</h3>';
   if (!url){
     h += '<p class="small muted" style="margin:0">URL backend belum diisi. Isi lewat <b>wizard langkah Koneksi</b> — bawaan Progresio kini Worker Cloudflare (masuk dengan Google); URL GAS lama tetap bisa dipakai sebagai cadangan (masuk dengan PIN). Selama backend belum terhubung pun Progresio tetap berfungsi penuh secara lokal; localStorage di perangkat ini adalah cache offline-nya.</p>';
-    z.innerHTML = h; return;
+    z.innerHTML = h; wrapCardAcc(z, "setKoneksi"); return;
   }
   h += '<p class="small muted" style="margin:0">URL backend ('+namaBackend+'): <span style="word-break:break-all">'+esc(url)+'</span></p>'
     + '<p class="small muted" style="margin:4px 0 0">URL bisa diganti dari wizard langkah Koneksi — tampilan masuk di kartu ini menyesuaikan jenisnya: Worker memakai Masuk dengan Google, GAS memakai PIN.</p>';
@@ -3746,6 +3808,7 @@ function renderGasCard(){
     : ' · '+ls.pushed+' entri terkirim'+(ls.skipped ? ', '+ls.skipped+' dilewati (jam belum lengkap — server menolak entri tanpa jam selesai)' : '')+(ls.failed ? ', '+ls.failed+' ditolak server' : '')+', '+ls.uploaded+' eviden terunggah'+(ls.upFailed ? ', '+ls.upFailed+' eviden gagal terunggah' : '')+', '+ls.pulled+' entri ditarik dari server')+'</p>';
   if (dataMode==="sample") h += '<p class="small" style="margin:10px 0 0;color:var(--amber)"><b>Mode data contoh:</b> sinkron dimatikan agar data contoh tidak terkirim ke Sheets asli. Isi data Anda lewat wizard (atau kosongkan entri contoh) untuk menyalakan sinkron.</p>';
   z.innerHTML = h;
+  wrapCardAcc(z, "setKoneksi");
   if (kind==="worker" && !gasSessionValid()) mountGisButton(0);
   const pb = $("#gasPingBtn"); if (pb) pb.addEventListener("click", async ()=>{ pb.disabled = true; pb.textContent = "Menghubungi backend…"; await gasPing(); renderGasCard(); });
   const doGasLogin = async ()=>{
