@@ -2717,7 +2717,17 @@ async function prepareUploadPayload(f){
    benar berada di folder entri itu, menerapkan akses folder, dan menulis
    Link Bukti Dukung ke Log_Kerja. Backend GAS tidak berubah: GAS berjalan
    sebagai pengguna sendiri, jadi jalur uploadEviden base64 lama tetap
-   dipakai di sana. */
+   dipakai di sana.
+   Lanjutan 2026-11-27 (kasus “Insufficient permissions for the specified
+   parent”): folder kegiatan DIMILIKI service account; akun pengguna hanya
+   memegang akses lihat lewat link, jadi Drive menolak unggah langsung ke
+   folder itu. Karena itu SEBELUM mengunggah, aplikasi meminta Worker
+   menyiapkan folder lewat aksi siapkanFolder — server memastikan folder
+   ada dan memberi akun pemilik peran writer di folder itu. Bila Drive
+   tetap menolak dengan galat izin induk yang sama, penyiapan dipaksa
+   sekali lagi dan unggah dicoba ulang di tempat; bila penyiapan di server
+   sendiri gagal (mis. Worker belum di-deploy ulang dengan aksi itu),
+   pesan gagalnya menyebut itu apa adanya. */
 let driveToken = "";       // token akses Drive sesi ini (memori saja)
 let driveTokenExp = 0;     // cap waktu token kedaluwarsa (ms)
 function driveErrText(err){
@@ -2802,12 +2812,46 @@ async function driveUploadFile(token, folderId, pay){
    dan dipakai sebagai penyebab yang sama untuk semua berkas tertunda,
    supaya tidak ada rentetan popup / percobaan sia-sia. */
 async function uploadCtx(interactive){
-  const ctx = { interactive: !!interactive, token:"", tokenErr:null };
+  const ctx = { interactive: !!interactive, token:"", tokenErr:null, siap:{} };
   if (backendKind(gasUrlVal())==="worker"){
     try{ ctx.token = await driveEnsureToken(!!interactive); }
     catch(err){ ctx.tokenErr = err; }
   }
   return ctx;
+}
+/* Siapkan folder kegiatan di server sebelum unggah langsung (backend
+   Worker): aksi siapkanFolder memastikan folder entri ada dan memberi
+   akun Google pemilik peran WRITER di folder itu — folder dibuat service
+   account, jadi tanpa langkah ini unggah langsung ditolak Drive dengan
+   “Insufficient permissions for the specified parent”. Hasil per entri
+   disimpan di ctx.siap supaya satu putaran unggah hanya memanggilnya
+   sekali per entri; force=true mengabaikan simpanan itu (dipakai jalur
+   penyembuhan setelah Drive menolak). Kegagalan TIDAK dilempar: ia
+   dikembalikan sebagai {ok:false, err} karena unggah kadang tetap bisa
+   jalan (folder entri baru sudah diberi writer server saat dibuat);
+   galatnya baru dipakai bila unggahnya sendiri ditolak soal izin. */
+async function driveSiapkanFolder(e, ctx, force){
+  ctx = ctx || {}; ctx.siap = ctx.siap || {};
+  const key = e.logId || ("e"+e.id);
+  if (!force && ctx.siap[key]) return ctx.siap[key];
+  let out;
+  if (!e.logId){
+    out = { ok:false, err:new Error("Entri ini belum punya ID LOG — sinkronkan dulu supaya entrinya tercatat di server.") };
+  } else {
+    try{
+      const sf = await gasCall({ action:"siapkanFolder", idLog: e.logId }, 60000);
+      if (sf.folderId) e.folderId = sf.folderId;
+      if (sf.folderUrl) e.folderUrl = sf.folderUrl;
+      out = { ok:true };
+    }catch(err){
+      out = { ok:false, err:err };
+    }
+  }
+  ctx.siap[key] = out;
+  return out;
+}
+function driveIzinIndukErr(err){
+  return /insufficient permissions/i.test((err && err.message) || "");
 }
 /* Unggah SATU berkas eviden dengan maksimal 2 percobaan (jeda 2 detik).
    Status berkas diperbarui apa pun hasilnya — tidak ada galat yang ditelan.
@@ -2826,12 +2870,31 @@ async function uploadOneEviden(e, f, ctx){
     try{
       const pay = await prepareUploadPayload(f);
       if (worker){
-        if (!e.folderId) throw new Error("ID folder eviden entri ini belum terbaca aplikasi — jalankan “Sinkronkan sekarang” sekali lagi supaya ID foldernya terbaca dari server, lalu unggah ulang.");
         const token = ctx.token || await driveEnsureToken(!!ctx.interactive);
         let fileId = f.driveFileId || "";
         if (!fileId){
-          const upFile = await driveUploadFile(token, e.folderId, pay);
-          fileId = upFile.id;
+          /* Folder kegiatan dimiliki service account: minta server
+             menyiapkannya dulu (aksi siapkanFolder memberi akun pengguna
+             peran writer) — tanpa itu Drive menolak unggah dengan
+             “Insufficient permissions for the specified parent”. */
+          await driveSiapkanFolder(e, ctx, false);
+          if (!e.folderId) throw new Error("ID folder eviden entri ini belum terbaca aplikasi — jalankan “Sinkronkan sekarang” sekali lagi supaya ID foldernya terbaca dari server, lalu unggah ulang.");
+          try{
+            const upFile = await driveUploadFile(token, e.folderId, pay);
+            fileId = upFile.id;
+          }catch(upErr){
+            if (!driveIzinIndukErr(upErr)) throw upErr;
+            /* Penyembuhan di tempat: penyiapan awal mungkin gagal/terlewat
+               (mis. folder lama dari Worker versi sebelumnya) — paksa
+               siapkan sekali lagi, lalu coba unggah satu kali lagi. */
+            const siap2 = await driveSiapkanFolder(e, ctx, true);
+            if (!siap2.ok){
+              throw new Error(upErr.message+" · Folder kegiatan entri ini belum memberi izin tulis ke akun Google Anda, dan penyiapan akses tulisnya di server gagal: "+((siap2.err && siap2.err.message) || "tanpa pesan")+" — deploy ulang Worker versi terbaru (yang memiliki aksi siapkanFolder), lalu tekan “Coba unggah ulang”.");
+            }
+            if (!e.folderId) throw upErr;
+            const upFile2 = await driveUploadFile(token, e.folderId, pay);
+            fileId = upFile2.id;
+          }
           f.driveFileId = fileId; // tersimpan: bila catatEviden gagal, ulangan tidak mengunggah berkas yang sama dua kali
         }
         const up = await gasCall({ action:"catatEviden", idLog: e.logId, berkas:{ fileId:fileId, nama:pay.nama, mime:pay.mime, ukuran:pay.blob.size } }, 60000);
@@ -2856,6 +2919,9 @@ async function uploadOneEviden(e, f, ctx){
   }
   f.upState = "failed"; f.upTries = (f.upTries||0)+1;
   f.upError = (lastErr && lastErr.message) || "Unggah gagal tanpa pesan dari server";
+  if (worker && driveIzinIndukErr(lastErr) && f.upError.indexOf("izin tulis")<0){
+    f.upError += " · Folder kegiatan entri ini belum memberi izin tulis ke akun Google Anda (foldernya milik service account Worker) — aplikasi sudah meminta server menyiapkannya lewat aksi siapkanFolder; pastikan Worker sudah di-deploy ulang ke versi terbaru, lalu tekan “Coba unggah ulang”.";
+  }
   return false;
 }
 /* Satu putaran unggah untuk semua entri ber-ID LOG yang berkasnya tertunda
