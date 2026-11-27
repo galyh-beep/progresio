@@ -562,11 +562,12 @@
           <div id="rhkMetaZone"></div>
           <div class="card" id="aiDiagCard"></div>
           <div class="card" id="gasCard"></div>
+          <div class="card" id="driveFolderCard"></div>
           <div class="card" id="evidenSetCard"></div>
           <div class="card">
             <h3>Data di perangkat ini</h3>
             <p class="small muted" id="storageStatus" style="margin:0 0 6px">—</p>
-            <p class="small muted" style="margin:0">Entri, RHK, profil, dan pengaturan — termasuk kunci GAS/Gemini dan token Telegram — tersimpan di localStorage perangkat ini dan dimuat lagi saat aplikasi dibuka. Lampiran tersimpan sebagai metadata (nama, ukuran, tipe) plus thumbnail kecil untuk foto; isi berkasnya perlu dilampirkan ulang setelah aplikasi dibuka kembali.</p>
+            <p class="small muted" style="margin:0">Entri, RHK, profil, dan pengaturan — termasuk kunci GAS/Gemini, ID folder Drive tujuan eviden, dan token Telegram — tersimpan di localStorage perangkat ini dan dimuat lagi saat aplikasi dibuka. Lampiran tersimpan sebagai metadata (nama, ukuran, tipe) plus thumbnail kecil untuk foto; isi berkasnya perlu dilampirkan ulang setelah aplikasi dibuka kembali.</p>
             <div style="display:flex;gap:10px;margin-top:14px;flex-wrap:wrap">
               <button class="btn ghost" id="clearEntriesBtn" style="flex:1;min-height:46px">Kosongkan entri</button>
               <button class="btn danger" id="resetSampleBtn" style="flex:1;min-height:46px">Reset ke data contoh</button>
@@ -842,7 +843,7 @@ function backendKind(url){
 
 /* ---------------- Profil & pengaturan (contoh) ---------------- */
 let PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-let SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
+let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
 const RAMADAN_RANGES = [ {start:"2026-02-18", end:"2026-03-19"}, {start:"2027-02-08", end:"2027-03-09"} ]; // perkiraan awal Ramadan; target Ramadan 6 jam 30 menit
@@ -866,7 +867,7 @@ function durasiEntry(e){
   return {menit:0, estimasi:false};
 }
 function fmtDurasi(m){ if(!m) return "—"; const h=Math.floor(m/60), s=m%60; return h? (h+" jam"+(s?" "+s+" mnt":"")) : s+" mnt"; }
-function folderEviden(e){ const d=parseKey(e.date); const q=["I","II","III","IV"][Math.floor(d.getMonth()/3)]; return d.getFullYear()+" › Triwulan "+q+" › "+BULAN[d.getMonth()]+" › "+e.date+"_LOG-"+String(e.id).padStart(4,"0"); }
+function folderEviden(e){ const d=parseKey(e.date); const q=["I","II","III","IV"][Math.floor(d.getMonth()/3)]; return "Eviden_Kinerja › "+d.getFullYear()+" › Triwulan "+q+" › "+pad(d.getMonth()+1)+" - "+BULAN[d.getMonth()]+" › "+e.date+"_LOG-"+String(e.id).padStart(4,"0"); }
 function aksesEntry(e){ if (e.akses) return e.akses; const r = e.rhk ? RHKS.find(x=>x.id===e.rhk) : null; return r && r.akses ? r.akses : "link"; }
 function jumlahLabel(e){ const r = e.rhk ? RHKS.find(x=>x.id===e.rhk) : null; const sat = e.satuan || (r?r.satuan:"") || ""; return (e.jumlah!=null? e.jumlah : 1) + (sat? " "+sat : ""); }
 
@@ -891,7 +892,7 @@ function loadStore(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
   if (s.profile) PROFILE = s.profile;
-  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false }, s.settings);
+  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
      sesi PIN lama dibuang karena tidak berlaku di Worker — pengguna masuk
@@ -922,7 +923,7 @@ function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
   PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-  SETTINGS = { gasUrl:WORKER_URL, geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
+  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
   LIBUR = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
   seedSample();
@@ -2059,7 +2060,7 @@ function renderSettings(){
   const items = [
     {t:"Profil pegawai", s: PROFILE.nama ? PROFILE.nama+(PROFILE.jabatan?" · "+PROFILE.jabatan:"") : "Belum diisi", step:0, ok:!!PROFILE.nama, ic:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'},
     {t:"RHK & rencana aksi", s: RHKS.length+" RHK · "+RHKS.reduce((a,r)=>a+r.aksi.length,0)+" aksi terbaca", step:1, ok:RHKS.length>0, ic:'<path d="M8 6h13M8 12h13M8 18h13"/><path d="M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>'},
-    {t:"Koneksi backend & Gemini", s: SETTINGS.geminiKey ? "Gemini aktif — otak AI menyala"+(SETTINGS.gasUrl?" · URL backend terisi":"") : SETTINGS.gasUrl ? "URL backend terisi · Gemini belum — pencocokan lokal" : "Belum diisi — pencocokan lokal", step:2, ok:!!SETTINGS.geminiKey, ic:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'},
+    {t:"Koneksi backend & Gemini", s: (SETTINGS.geminiKey ? "Gemini aktif — otak AI menyala"+(SETTINGS.gasUrl?" · URL backend terisi":"") : SETTINGS.gasUrl ? "URL backend terisi · Gemini belum — pencocokan lokal" : "Belum diisi — pencocokan lokal") + (driveFolderVal() ? " · Folder Drive: folder Anda sendiri" : " · Folder Drive: bawaan server"), step:2, ok:!!SETTINGS.geminiKey, ic:'<path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/>'},
     {t:"Telegram (opsional)", s: SETTINGS.telegramOn ? "Aktif · pengingat H-3/H-1" : "Nonaktif — PWA saja sudah lengkap", step:3, ok:SETTINGS.telegramOn, ic:'<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>'}
   ];
   $("#setList").innerHTML = items.map((it,i)=>
@@ -2067,7 +2068,7 @@ function renderSettings(){
   ).join("") + '<button class="btn primary" id="openWizard" style="margin-top:16px">Buka wizard konfigurasi awal</button>';
   $$("#setList [data-wiz]").forEach(b=>b.addEventListener("click", ()=>openWizard(Number(b.dataset.wiz))));
   $("#openWizard").addEventListener("click", ()=>openWizard(0));
-  renderRhkMeta(); renderAiDiag(); renderGasCard(); renderEvidenSettings();
+  renderRhkMeta(); renderAiDiag(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
   updateStorageStatus();
 }
 function renderRhkMeta(){
@@ -2092,6 +2093,40 @@ function renderAiDiag(){
     + '<div class="field"><label for="modelSel">Model utama</label><select id="modelSel">'+AI_MODELS.map(m=>'<option value="'+m+'"'+(order[0]===m?" selected":"")+'>'+m+'</option>').join("")+'</select></div>'
     + (d ? '<p class="small" style="margin:10px 0 0">Panggilan AI terakhir: <b>'+esc(d.waktu)+'</b> · model <b>'+esc(d.model)+'</b> · status <b>'+esc(d.status)+'</b>'+(d.http?' · HTTP '+d.http:'')+(d.ms?' · '+d.ms+' md':'')+'</p>' : '<p class="small muted" style="margin:10px 0 0">Belum ada panggilan AI tercatat di perangkat ini.</p>');
   $("#modelSel").addEventListener("change", e=>{ SETTINGS.modelUtama = e.target.value; saveStore(); renderAiDiag(); toast("Model utama: "+e.target.value); });
+}
+function renderDriveFolderCard(){
+  const z = $("#driveFolderCard"); if (!z) return;
+  const id = driveFolderVal();
+  z.innerHTML = '<h3>Folder Drive tujuan eviden</h3>'
+    + '<p class="small muted" style="margin:0">Folder induk di Google Drive tempat backend membuat pohon eviden: <b style="color:var(--ink)">Eviden_Kinerja › tahun › Triwulan › “01 - Januari” › folder kegiatan (tanggal_LOG-xxxx)</b>. Tempel URL atau ID folder yang Anda buat sendiri di Drive Saya — pola copas yang sama seperti kunci Gemini &amp; URL backend — supaya folder kegiatan tidak mendarat di tempat lain. ID ini tersimpan di perangkat ini dan dikirim ke backend pada setiap sinkron &amp; unggah eviden sebagai <b style="color:var(--ink)">driveRootFolderId</b>.</p>'
+    + '<p style="margin:10px 0 0">' + (id ? '<span class="chip green">Folder Anda terisi</span> <span class="small muted">ID: '+esc(id)+'</span>' : '<span class="chip amber">Bawaan server</span> <span class="small muted">Kolom kosong — backend memakai folder induk bawaannya (DRIVE_ROOT_FOLDER_ID di server).</span>') + '</p>'
+    + '<div class="field"><label for="setFolderInput">URL / ID folder induk Drive</label><input id="setFolderInput" value="'+esc(driveFolderUrl(id))+'" placeholder="https://drive.google.com/drive/folders/… atau tempel ID foldernya saja" autocomplete="off"/></div>'
+    + '<p class="small" id="setFolderHint" style="margin:6px 0 0"></p>'
+    + '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    + '<button class="btn primary" id="setFolderSave" type="button" style="flex:1;min-height:46px">Simpan folder</button>'
+    + (id ? '<a class="btn ghost" href="'+esc(driveFolderUrl(id))+'" target="_blank" rel="noopener" style="flex:1;min-height:46px">Buka folder</a>' : '')
+    + (id ? '<button class="btn plain" id="setFolderClear" type="button" style="flex:1;min-height:46px">Pakai bawaan server</button>' : '')
+    + '</div>'
+    + '<p class="small muted" style="margin:10px 0 0">Cara: buat folder induknya di Drive Saya, buka folder itu, salin URL dari address bar, lalu tempel di sini — ID-nya terbaca otomatis. Bila memakai backend Worker, bagikan juga folder induk itu ke akun layanan Worker (akun “progresio-worker” yang selama ini membagikan folder LOG ke Anda) dengan peran <b style="color:var(--ink)">Editor</b>, agar Worker bisa membuat folder kegiatan di dalamnya. Mengganti folder hanya memengaruhi folder kegiatan yang dibuat setelahnya — folder LOG yang sudah ada tidak ikut berpindah.</p>';
+  const inp = $("#setFolderInput"), hint = $("#setFolderHint");
+  const upd = ()=>{
+    const v = (inp.value||"").trim();
+    const pid = parseDriveFolderId(v);
+    if (!v){ hint.style.color="var(--muted)"; hint.textContent="Kosong = memakai folder induk bawaan server."; return; }
+    if (!pid){ hint.style.color="var(--red)"; hint.textContent="Belum terbaca sebagai URL/ID folder Drive — tempel URL folder dari address bar Drive (mengandung /folders/…) atau ID foldernya saja."; return; }
+    hint.style.color="var(--emerald)"; hint.innerHTML="ID folder terbaca: <b>"+esc(pid)+"</b> — tekan “Simpan folder” untuk memakainya.";
+  };
+  inp.addEventListener("input", upd); upd();
+  $("#setFolderSave").addEventListener("click", ()=>{
+    const v = (inp.value||"").trim();
+    if (!v){ SETTINGS.driveFolderId=""; saveStore(); renderSettings(); toast("Folder eviden kembali ke bawaan server"); return; }
+    const pid = parseDriveFolderId(v);
+    if (!pid){ toast("URL/ID folder belum terbaca — tempel URL folder Drive atau ID foldernya saja"); return; }
+    SETTINGS.driveFolderId = pid; saveStore(); renderSettings();
+    toast("Folder tujuan eviden tersimpan — folder kegiatan berikutnya dibuat di folder ini");
+  });
+  const clr = $("#setFolderClear");
+  if (clr) clr.addEventListener("click", ()=>{ SETTINGS.driveFolderId=""; saveStore(); renderSettings(); toast("Folder eviden kembali ke bawaan server"); });
 }
 function renderEvidenSettings(){
   const z = $("#evidenSetCard"); if(!z) return;
@@ -2154,6 +2189,9 @@ function renderWizard(){
       + fld("URL backend (Worker / GAS)","s_gas",d.settings.gasUrl,"https://…workers.dev atau https://script.google.com/macros/s/…/exec")
       + '<button class="btn ghost" id="testGasBtn" type="button" style="margin-top:10px;min-height:44px">Tes koneksi backend</button>'
       + '<p class="small" id="testGasOut" style="margin-top:8px"></p>'
+      + fld("Folder induk Drive untuk eviden (URL / ID folder)","s_folder",d.settings.driveFolderId,"https://drive.google.com/drive/folders/… atau ID foldernya saja")
+      + '<p class="small" id="folderHint" style="margin:6px 0 0"></p>'
+      + '<p class="small muted" style="margin:6px 0 0">Buat folder induknya sendiri di Drive Saya (mis. ProgresioMuse_System), buka folder itu, salin URL dari address bar, lalu tempel di sini — ID-nya terbaca otomatis, pola yang sama seperti kunci Gemini di bawah. Di dalam folder induk ini backend membuat Eviden_Kinerja › tahun › Triwulan › “01 - Januari” › folder kegiatan, jadi eviden tidak mendarat di folder lain. Bila memakai backend Worker, bagikan juga folder induk itu ke akun layanan Worker (akun “progresio-worker” yang selama ini membagikan folder LOG ke Anda) dengan peran Editor, agar Worker bisa membuat folder kegiatan di dalamnya. Kosongkan kolom ini untuk memakai folder induk bawaan server.</p>'
       + '<div class="field"><label for="s_gemini">Kunci API Gemini</label><div style="display:flex;gap:8px"><input id="s_gemini" type="password" value="'+esc(d.settings.geminiKey||"")+'" placeholder="AIza… atau AQ.…" autocomplete="off" style="flex:1;min-width:0"/><button class="btn ghost" id="toggleGeminiKey" type="button" style="min-height:46px;padding:10px 14px;flex:none">Lihat</button></div><p class="small" id="geminiKeyHint" style="margin:6px 0 0"></p></div>'
       + '<div class="field"><label for="s_model">Model utama Gemini</label><select id="s_model">'+AI_MODELS.map(m=>'<option value="'+m+'"'+((d.settings.modelUtama||"gemini-3.5-flash-lite")===m?" selected":"")+'>'+m+'</option>').join("")+'</select></div>'
       + (d.settings.lastAiDiag ? '<p class="small muted">Diagnosis terakhir: '+esc(d.settings.lastAiDiag.waktu)+' · '+esc(d.settings.lastAiDiag.model)+' · '+esc(d.settings.lastAiDiag.status)+(d.settings.lastAiDiag.http?' · HTTP '+d.settings.lastAiDiag.http:'')+(d.settings.lastAiDiag.ms?' · '+d.settings.lastAiDiag.ms+' md':'')+'</p>' : "")
@@ -2161,6 +2199,16 @@ function renderWizard(){
       + '<p class="small" id="testGeminiOut" style="margin-top:8px"></p>'
       + '<p class="small muted">Kosongkan pun tidak apa-apa: tanpa kunci, Progresio tetap jalan dengan pencocokan kata kunci lokal di perangkat.</p></div>';
     $("#s_gas").addEventListener("input", e=>d.settings.gasUrl=e.target.value);
+    const fInp = $("#s_folder"), fHint = $("#folderHint");
+    const updFolderHint = ()=>{
+      const v = (fInp.value||"").trim();
+      const fid = parseDriveFolderId(v);
+      if (!v){ fHint.style.color="var(--muted)"; fHint.textContent="Kosong = folder induk bawaan server yang dipakai. Isi untuk memakai folder buatan Anda sendiri."; return; }
+      if (!fid){ fHint.style.color="var(--red)"; fHint.textContent="Belum terbaca sebagai URL/ID folder Drive — tempel URL folder dari address bar Drive (mengandung /folders/…) atau ID foldernya saja."; return; }
+      fHint.style.color="var(--emerald)"; fHint.innerHTML="ID folder terbaca: <b>"+esc(fid)+"</b> · <a href=\""+esc(driveFolderUrl(fid))+"\" target=\"_blank\" rel=\"noopener\" style=\"color:var(--blue)\">Buka folder</a> — ID ini dikirim ke backend sebagai folder induk eviden pada setiap sinkron &amp; unggah, dan baru tersimpan bila wizard diselesaikan sampai langkah “Selesai”.";
+    };
+    fInp.addEventListener("input", e=>{ d.settings.driveFolderId=e.target.value; updFolderHint(); });
+    updFolderHint();
     /* Tawaran hubungkan akun di langkah Koneksi: jelas tapi tidak memaksa.
        Worker → tombol Masuk dengan Google (GIS) + Lewati sama menonjol;
        GAS → PIN + Masuk dan Lewati berdampingan sama besar. Lewati langsung
@@ -2265,6 +2313,7 @@ function renderWizard(){
       + sumRow("Nama", d.profile.nama||"—") + sumRow("RHK terbaca", d.rhks.length+" RHK · "+d.rhks.reduce((a,r)=>a+r.aksi.length,0)+" rencana aksi")
       + sumRow("Gemini", d.settings.geminiKey ? "Aktif — otak AI menyala · utama "+(d.settings.modelUtama||"gemini-3.5-flash-lite") : "Belum diisi — pencocokan lokal")
       + sumRow("Koneksi backend", d.settings.gasUrl ? (backendKind(d.settings.gasUrl)==="worker" ? "Worker — masuk dengan Google & sinkron dari Pengaturan" : "GAS — login PIN & sinkron dari Pengaturan") : "Belum diisi — Progresio tetap jalan lokal")
+      + sumRow("Folder Drive eviden", parseDriveFolderId(d.settings.driveFolderId||"") ? "Folder Anda sendiri · ID "+parseDriveFolderId(d.settings.driveFolderId||"") : "Bawaan server")
       + sumRow("Telegram", d.settings.telegramOn ? "Aktif (pengingat "+(d.settings.remindH3?"H-3 ":"")+(d.settings.remindH1?"H-1":"")+ ")" : "Nonaktif")
       + sumRow("Tenggat terdekat", "Triwulan "+q.num+" · "+q.end.getDate()+" "+BULAN[q.end.getMonth()]+" "+q.end.getFullYear())
       + '<p class="small muted" style="margin-top:10px">Alur harian Anda: <b>Tempel → Catat → Jadi 7 kolom → Pantau → Arsip.</b></p></div>';
@@ -2311,6 +2360,7 @@ $("#wizPrev").addEventListener("click", ()=>{ if(wizStep>0){ wizStep--; renderWi
 $("#wizNext").addEventListener("click", ()=>{
   if (wizStep<4){ wizStep++; renderWizard(); return; }
   PROFILE = wizDraft.profile; RHKS = wizDraft.rhks.length? wizDraft.rhks : RHKS; SETTINGS = wizDraft.settings;
+  SETTINGS.driveFolderId = parseDriveFolderId(SETTINGS.driveFolderId||""); /* simpan ID foldernya saja, bukan URL tempelan mentah */
   if (wizDraft.rhkPasted){ if (dataMode==="sample") ENTRIES = []; dataMode = "custom"; }
   saveStore();
   $("#sampleBanner").style.display = dataMode==="sample" ? "" : "none";
@@ -2439,6 +2489,28 @@ let gasPinFormOpen = false; // formulir Ganti PIN di kartu Koneksi GAS sedang te
 let gasLoginMsg = ""; // pesan status terakhir panel login GAS (mis. PIN salah dari server)
 
 function gasUrlVal(){ return (SETTINGS.gasUrl||"").trim(); }
+/* ---------------- Folder induk Drive pilihan pengguna ----------------
+   Pengaturan folder dengan pola copas seperti kunci Gemini & URL backend
+   (permintaan Ardian 2026-11-27, kasus folder kegiatan mendarat di pohon
+   paralel service account / “Dibagikan kepada saya”): pengguna membuat
+   folder induknya SENDIRI di Drive Saya, lalu menempel URL atau ID folder
+   itu di wizard langkah Koneksi atau kartu Pengaturan › Folder Drive.
+   ID hasil bacaan disimpan di SETTINGS.driveFolderId (localStorage) dan
+   dikirim ke backend pada setiap panggilan gasCall sebagai
+   driveRootFolderId, supaya folder kegiatan dibuat di dalam folder yang
+   ditunjuk itu. Kosong = backend memakai folder induk bawaannya. */
+function parseDriveFolderId(v){
+  const s = String(v||"").trim();
+  if (!s) return "";
+  let m = s.match(/folders\/([A-Za-z0-9_-]{10,})/);
+  if (m) return m[1];
+  m = s.match(/[?&]id=([A-Za-z0-9_-]{10,})/);
+  if (m) return m[1];
+  if (/^[A-Za-z0-9_-]{15,}$/.test(s)) return s;
+  return "";
+}
+function driveFolderVal(){ return parseDriveFolderId(SETTINGS.driveFolderId||""); }
+function driveFolderUrl(id){ return id ? "https://drive.google.com/drive/folders/"+id : ""; }
 function gasSessionValid(){
   if (!SETTINGS.gasToken) return false;
   if (SETTINGS.gasSesiSampai && Date.now() > Date.parse(SETTINGS.gasSesiSampai)) return false;
@@ -2544,6 +2616,13 @@ async function gasCall(payload, timeoutMs){
   if (!url){ const e = new Error("URL GAS belum diisi — isi lewat wizard langkah Koneksi."); e.kode = "NOURL"; throw e; }
   const body = Object.assign({}, payload);
   if (body.action!=="login") body.token = SETTINGS.gasToken || "";
+  /* Folder induk eviden pilihan pengguna (wizard Koneksi / Pengaturan ›
+     Folder Drive): dikirim pada setiap panggilan backend sebagai
+     driveRootFolderId agar folder kegiatan dibuat di dalam folder yang
+     dibuat & ditunjuk sendiri oleh pengguna. Kosong = tidak dikirim;
+     backend memakai DRIVE_ROOT_FOLDER_ID bawaannya. */
+  const dfId = driveFolderVal();
+  if (dfId && body.action!=="login") body.driveRootFolderId = dfId;
   const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), timeoutMs||60000);
   let res;
   try{
