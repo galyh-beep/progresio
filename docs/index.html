@@ -174,6 +174,9 @@
       .day.today{border-color:var(--blue);color:var(--blue);font-weight:800}
       .day.sel{background:var(--navy)!important;color:#fff!important;border-color:var(--navy)}
       .day.sel::after{background:#fff}
+      .day .wfhmark{font-size:9px;font-weight:800;letter-spacing:.05em;line-height:1;color:var(--blue);margin-top:2px}
+      @media (prefers-color-scheme: dark){ .day .wfhmark{color:#8FB0F5} }
+      .day.sel .wfhmark{color:#fff}
       .legend{display:flex;gap:16px;margin-top:12px;font-size:13px;color:var(--muted);flex-wrap:wrap}
       .legend i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:5px}
       .stat3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:14px}
@@ -470,13 +473,13 @@
               <span><i style="background:var(--amber-dot)"></i>Sebagian</span>
               <span><i style="background:#F2C4C4"></i>Kosong</span>
               <span><i style="background:var(--purple)"></i>Libur/cuti</span>
+              <span><b style="font-size:10px;font-weight:800;letter-spacing:.05em;color:var(--blue)">WFH</b> Hari WFH</span>
               <span><i style="background:var(--navy)"></i><span style="color:var(--ink)">Dipilih</span></span>
             </div>
           </div>
           <div class="stat3" id="calStats"></div>
           <div class="card" id="jadwalCard"></div>
           <div class="card" id="weekCard"></div>
-          <div class="card" id="liburCard"></div>
           <div class="card" id="gapCard" style="display:none">
             <div class="rowflex">
               <div class="grow"><b id="gapTitle">Ada hari kosong</b><div class="small muted" id="gapText"></div></div>
@@ -560,6 +563,7 @@
           <div class="pagehead"><h2>Pengaturan</h2><div class="sub">Semua konfigurasi awal dari sini — tanpa buka Sheets.</div></div>
           <div id="setList"></div>
           <div id="rhkMetaZone"></div>
+          <div class="card" id="jadwalSetCard"></div>
           <div class="card" id="aiDiagCard"></div>
           <div class="card" id="gasCard"></div>
           <div class="card" id="driveFolderCard"></div>
@@ -744,7 +748,7 @@ function mkEntry(dateK, t, buktiN){
   if (buktiN>1) files.push({name:"dokumen-pendukung.pdf", size:412*1024, type:"application/pdf", sample:true});
   const rr = RHKS.find(r=>r.id===t.rhk);
   const dm = (t.s && t.e) ? Math.max(0, (Number(t.e.split(".")[0])*60+Number(t.e.split(".")[1])) - (Number(t.s.split(".")[0])*60+Number(t.s.split(".")[1]))) : 0;
-  return { id:++entrySeq, date:dateK, start:t.s, end:t.e, rhk:t.rhk, aksi:t.aksi, uraian:t.uraian, realisasi:t.realisasi, jumlah:1, satuan: rr?rr.satuan:"", durasiMenit:dm, estimasi:false, akses:"", files, link: files.length>0, src:"Ketik" };
+  return { id:++entrySeq, date:dateK, start:t.s, end:t.e, rhk:t.rhk, aksi:t.aksi, uraian:t.uraian, realisasi:t.realisasi, jumlah:1, satuan: rr?rr.satuan:"", durasiMenit:dm, estimasi:false, akses:"", mode:(typeof isWfhDay==="function" && isWfhDay(dateK)) ? "WFH" : "", files, link: files.length>0, src:"Ketik" };
 }
 let ENTRIES = [];
 function seedSample(){
@@ -764,9 +768,10 @@ function seedSample(){
     if (r()>0.55){ const t2=TEMPLATES[Math.floor(r()*TEMPLATES.length)]; if(t2!==t1) ENTRIES.push(mkEntry(k, t2, t2.foto?1:0)); }
   });
   // Hari ini: 3 entri sesuai contoh tampilan
-  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"07.45", end:"09.30", rhk:1, aksi:"Verifikasi berkas permohonan masuk", uraian:"Verifikasi berkas permohonan izin usaha", realisasi:"Berkas permohonan izin usaha terverifikasi", files:[{name:"foto-berkas.jpg", size:287*1024, type:"image/jpeg", sample:true}], link:true, src:"Ketik"});
-  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"10.00", end:"11.45", rhk:3, aksi:"Menyusun notulen rapat koordinasi", uraian:"Rapat koordinasi persiapan layanan akhir tahun", realisasi:"Notulen rapat koordinasi", files:[{name:"foto-rapat.jpg", size:301*1024, type:"image/jpeg", sample:true},{name:"notulen-rapat.pdf", size:188*1024, type:"application/pdf", sample:true}], link:true, src:"Suara"});
-  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"11.50", end:"", rhk:2, aksi:"Menyusun draf laporan bulanan", uraian:"Menyusun draf laporan bulanan", realisasi:"Draf laporan bulanan tersusun sebagian", files:[], link:false, src:"Ketik"});
+  const modeHariIni = isWfhDay(TODAY_K) ? "WFH" : "";
+  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"07.45", end:"09.30", rhk:1, aksi:"Verifikasi berkas permohonan masuk", uraian:"Verifikasi berkas permohonan izin usaha", realisasi:"Berkas permohonan izin usaha terverifikasi", mode:modeHariIni, files:[{name:"foto-berkas.jpg", size:287*1024, type:"image/jpeg", sample:true}], link:true, src:"Ketik"});
+  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"10.00", end:"11.45", rhk:3, aksi:"Menyusun notulen rapat koordinasi", uraian:"Rapat koordinasi persiapan layanan akhir tahun", realisasi:"Notulen rapat koordinasi", mode:modeHariIni, files:[{name:"foto-rapat.jpg", size:301*1024, type:"image/jpeg", sample:true},{name:"notulen-rapat.pdf", size:188*1024, type:"application/pdf", sample:true}], link:true, src:"Suara"});
+  ENTRIES.push({id:++entrySeq, date:TODAY_K, start:"11.50", end:"", rhk:2, aksi:"Menyusun draf laporan bulanan", uraian:"Menyusun draf laporan bulanan", realisasi:"Draf laporan bulanan tersusun sebagian", mode:modeHariIni, files:[], link:false, src:"Ketik"});
   // Bulan-bulan lain di triwulan berjalan (untuk Rekap)
   const qStartMonth = Math.floor(m/3)*3;
   for(let mm=qStartMonth; mm<m; mm++){
@@ -843,16 +848,117 @@ function backendKind(url){
 
 /* ---------------- Profil & pengaturan (contoh) ---------------- */
 let PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
+let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
-const RAMADAN_RANGES = [ {start:"2026-02-18", end:"2026-03-19"}, {start:"2027-02-08", end:"2027-03-09"} ]; // perkiraan awal Ramadan; target Ramadan 6 jam 30 menit
-function isRamadan(k){ return RAMADAN_RANGES.some(r=> k>=r.start && k<=r.end); }
+/* Periode Ramadan kini tersimpan di SETTINGS.periodeRamadan dan bisa diubah
+   dari Pengaturan › Pengaturan Jadwal. RAMADAN_RANGES lama hanya fallback
+   bila belum ada daftar tersimpan; daftar awal (preload) mengikuti ketetapan
+   versi Claude yang dipilih pengguna: 1447 H 19 Feb–20 Mar 2026, 1448 H
+   8 Feb–10 Mar 2027, 1449 H 28 Jan–27 Feb 2028. Target Ramadan tetap
+   6 jam 30 menit/hari. */
+const RAMADAN_RANGES = [ {label:"Ramadan 1447 H", start:"2026-02-19", end:"2026-03-20"}, {label:"Ramadan 1448 H", start:"2027-02-08", end:"2027-03-10"}, {label:"Ramadan 1449 H", start:"2028-01-28", end:"2028-02-27"} ];
+function ramadanList(){ return (Array.isArray(SETTINGS.periodeRamadan) && SETTINGS.periodeRamadan.length) ? SETTINGS.periodeRamadan : RAMADAN_RANGES; }
+function isRamadan(k){ return ramadanList().some(r=> k>=r.start && k<=r.end); }
 function liburOn(k){ return LIBUR.find(l=>l.date===k) || null; }
+function liburCutiOn(k){ const l = liburOn(k); return (l && l.tipe!=="wfh") ? l : null; } // hanya libur/cuti yang meniadakan target; penanda "wfh" tidak
+const HARI_NAMA = ["Senin","Selasa","Rabu","Kamis","Jumat","Sabtu","Minggu"];
+function parseHariWfh(teks){
+  const hari=[], asing=[];
+  String(teks||"").split(",").forEach(tok=>{
+    const t = tok.trim(); if (!t) return;
+    const m = HARI_NAMA.find(h=>h.toLowerCase()===t.toLowerCase());
+    if (m){ if (!hari.includes(m)) hari.push(m); } else asing.push(t);
+  });
+  return { hari, asing };
+}
+function isWfhDay(k){
+  const d = parseKey(k); if (!d) return false;
+  if ((SETTINGS.hariWfh||[]).includes(HARI[d.getDay()])) return true; // hari WFH rutin (bawaan: Jumat)
+  const l = liburOn(k); return !!(l && l.tipe==="wfh"); // penanda WFH per tanggal
+}
+function jadwalChanged(){ SETTINGS.jadwalDiubahPada = Date.now(); saveStore(); } // setiap perubahan lokal memperbarui cap waktu untuk sinkron
+function jadwalPayload(){
+  return { wfh:(SETTINGS.hariWfh||[]).slice(),
+    ramadan: ramadanList().map(r=>({ label:r.label||"", start:r.start, end:r.end })),
+    libur: LIBUR.map(l=>({ date:l.date, label:l.label||"", tipe:l.tipe||"libur", resmi:!!l.resmi })),
+    diubahPada: SETTINGS.jadwalDiubahPada||0 };
+}
+/* Daftar libur resmi: 25 entri SKB 3 Menteri 2026 + 26 entri 2027 (screenshot
+   versi Claude) — sumber: progresio-jadwal-data.json, dipakai persis. */
+const LIBUR_RESMI = [
+  {date:"2026-01-01", label:"Tahun Baru 2026 Masehi", tipe:"libur", resmi:true},
+  {date:"2026-01-16", label:"Isra Mikraj Nabi Muhammad SAW", tipe:"libur", resmi:true},
+  {date:"2026-02-16", label:"Cuti Bersama Tahun Baru Imlek 2577 Kongzili", tipe:"cuti", resmi:true},
+  {date:"2026-02-17", label:"Tahun Baru Imlek 2577 Kongzili", tipe:"libur", resmi:true},
+  {date:"2026-03-18", label:"Cuti Bersama Hari Suci Nyepi", tipe:"cuti", resmi:true},
+  {date:"2026-03-19", label:"Hari Suci Nyepi (Tahun Baru Saka 1948)", tipe:"libur", resmi:true},
+  {date:"2026-03-20", label:"Cuti Bersama Idulfitri 1447 H", tipe:"cuti", resmi:true},
+  {date:"2026-03-21", label:"Hari Raya Idulfitri 1447 H", tipe:"libur", resmi:true},
+  {date:"2026-03-22", label:"Hari Raya Idulfitri 1447 H", tipe:"libur", resmi:true},
+  {date:"2026-03-23", label:"Cuti Bersama Idulfitri 1447 H", tipe:"cuti", resmi:true},
+  {date:"2026-03-24", label:"Cuti Bersama Idulfitri 1447 H", tipe:"cuti", resmi:true},
+  {date:"2026-04-03", label:"Wafat Yesus Kristus", tipe:"libur", resmi:true},
+  {date:"2026-04-05", label:"Hari Kebangkitan Yesus Kristus (Paskah)", tipe:"libur", resmi:true},
+  {date:"2026-05-01", label:"Hari Buruh Internasional", tipe:"libur", resmi:true},
+  {date:"2026-05-14", label:"Kenaikan Yesus Kristus", tipe:"libur", resmi:true},
+  {date:"2026-05-15", label:"Cuti Bersama Kenaikan Yesus Kristus", tipe:"cuti", resmi:true},
+  {date:"2026-05-27", label:"Hari Raya Idul Adha 1447 H", tipe:"libur", resmi:true},
+  {date:"2026-05-28", label:"Cuti Bersama Idul Adha 1447 H", tipe:"cuti", resmi:true},
+  {date:"2026-05-31", label:"Hari Raya Waisak 2570 BE", tipe:"libur", resmi:true},
+  {date:"2026-06-01", label:"Hari Lahir Pancasila", tipe:"libur", resmi:true},
+  {date:"2026-06-16", label:"1 Muharam Tahun Baru Islam 1448 H", tipe:"libur", resmi:true},
+  {date:"2026-08-17", label:"Proklamasi Kemerdekaan", tipe:"libur", resmi:true},
+  {date:"2026-08-25", label:"Maulid Nabi Muhammad SAW", tipe:"libur", resmi:true},
+  {date:"2026-12-24", label:"Cuti Bersama Kelahiran Yesus Kristus (Natal)", tipe:"cuti", resmi:true},
+  {date:"2026-12-25", label:"Kelahiran Yesus Kristus (Natal)", tipe:"libur", resmi:true},
+  {date:"2027-01-01", label:"Tahun Baru 2027 Masehi", tipe:"libur", resmi:true},
+  {date:"2027-01-05", label:"Isra Mikraj Nabi Muhammad saw.", tipe:"libur", resmi:true},
+  {date:"2027-02-05", label:"Cuti Bersama Tahun Baru Imlek 2578 Kongzili", tipe:"cuti", resmi:true},
+  {date:"2027-02-06", label:"Tahun Baru Imlek 2578 Kongzili", tipe:"libur", resmi:true},
+  {date:"2027-03-08", label:"Hari Suci Nyepi (Tahun Baru Saka 1949)", tipe:"libur", resmi:true},
+  {date:"2027-03-09", label:"Cuti Bersama Idulfitri 1448 H", tipe:"cuti", resmi:true},
+  {date:"2027-03-10", label:"Idulfitri 1448 H", tipe:"libur", resmi:true},
+  {date:"2027-03-11", label:"Idulfitri 1448 H", tipe:"libur", resmi:true},
+  {date:"2027-03-12", label:"Cuti Bersama Idulfitri 1448 H", tipe:"cuti", resmi:true},
+  {date:"2027-03-15", label:"Cuti Bersama Idulfitri 1448 H", tipe:"cuti", resmi:true},
+  {date:"2027-03-25", label:"Cuti Bersama Wafat Yesus Kristus", tipe:"cuti", resmi:true},
+  {date:"2027-03-26", label:"Wafat Yesus Kristus", tipe:"libur", resmi:true},
+  {date:"2027-03-28", label:"Hari Kebangkitan Yesus Kristus (Paskah)", tipe:"libur", resmi:true},
+  {date:"2027-05-01", label:"Hari Buruh Internasional", tipe:"libur", resmi:true},
+  {date:"2027-05-06", label:"Kenaikan Yesus Kristus", tipe:"libur", resmi:true},
+  {date:"2027-05-17", label:"Iduladha 1448 H", tipe:"libur", resmi:true},
+  {date:"2027-05-18", label:"Cuti Bersama Iduladha 1448 H", tipe:"cuti", resmi:true},
+  {date:"2027-05-19", label:"Cuti Bersama Waisak 2571 BE", tipe:"cuti", resmi:true},
+  {date:"2027-05-20", label:"Hari Raya Waisak 2571 BE", tipe:"libur", resmi:true},
+  {date:"2027-06-01", label:"Hari Lahir Pancasila", tipe:"libur", resmi:true},
+  {date:"2027-06-06", label:"1 Muharam Tahun Baru Islam 1449 H", tipe:"libur", resmi:true},
+  {date:"2027-08-15", label:"Maulid Nabi Muhammad saw.", tipe:"libur", resmi:true},
+  {date:"2027-08-17", label:"Proklamasi Kemerdekaan", tipe:"libur", resmi:true},
+  {date:"2027-12-24", label:"Cuti Bersama Kelahiran Yesus Kristus (Natal)", tipe:"cuti", resmi:true},
+  {date:"2027-12-25", label:"Kelahiran Yesus Kristus (Natal)", tipe:"libur", resmi:true},
+  {date:"2027-12-26", label:"Isra Mikraj Nabi Muhammad saw.", tipe:"libur", resmi:true}
+];
+function preloadLiburResmi(){
+  if (SETTINGS.liburResmiDimuat) return 0;
+  const ada = new Set(LIBUR.map(l=>l.date)); // gabung berdasarkan tanggal: yang sudah ada dipertahankan, tidak pernah duplikat
+  let tambah = 0;
+  LIBUR_RESMI.forEach(l=>{ if (!ada.has(l.date)){ LIBUR.push({ date:l.date, label:l.label, tipe:l.tipe, resmi:true }); tambah++; } });
+  LIBUR.sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : 0);
+  SETTINGS.liburResmiDimuat = true;
+  return tambah;
+}
+function initJadwal(){
+  let berubah = false;
+  if (!Array.isArray(SETTINGS.hariWfh)){ SETTINGS.hariWfh = ["Jumat"]; berubah = true; }
+  if (!Array.isArray(SETTINGS.periodeRamadan)){ SETTINGS.periodeRamadan = RAMADAN_RANGES.map(r=>Object.assign({}, r)); berubah = true; }
+  if (!SETTINGS.liburResmiDimuat){ preloadLiburResmi(); berubah = true; }
+  if (berubah) saveStore();
+}
 function targetMenit(k){
   const d = parseKey(k);
   if (!isWorkday(d)) return 0;
-  if (liburOn(k)) return 0;
+  if (liburCutiOn(k)) return 0; // hari WFH tetap hari kerja — target normal berlaku
   return isRamadan(k) ? 390 : 450; // normal 7 jam 30 menit efektif (Sen–Kam 07.30–16.00, Jum 07.30–16.30); Ramadan 6 jam 30 menit
 }
 function toMin(j){ if(!j) return null; const p=String(j).replace(":", ".").split("."); const h=Number(p[0]), m=Number(p[1]||0); if(isNaN(h)||isNaN(m)) return null; return h*60+m; }
@@ -892,7 +998,7 @@ function loadStore(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
   if (s.profile) PROFILE = s.profile;
-  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false }, s.settings);
+  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
      sesi PIN lama dibuang karena tidak berlaku di Worker — pengguna masuk
@@ -909,7 +1015,7 @@ function loadStore(){
   }
   if (Array.isArray(s.libur)) LIBUR = s.libur;
   if (Array.isArray(s.rhks) && s.rhks.length) RHKS = s.rhks.map(r=>{ const base = SAMPLE_RHKS.find(x=>x.id===r.id) || {}; return Object.assign({ satuan:base.satuan||"", aturan:base.aturan||"", durasiStd:base.durasiStd||60, akses:base.akses||"link" }, r); });
-  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", driveNama:f.driveNama||"", driveMime:f.driveMime||"", driveUkuran:f.driveUkuran||0, upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
+  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"", mode:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", driveNama:f.driveNama||"", driveMime:f.driveMime||"", driveUkuran:f.driveUkuran||0, upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
   if (typeof s.entrySeq==="number" && s.entrySeq>entrySeq) entrySeq = s.entrySeq;
   if (s.skorPattern) SKOR_PATTERN = s.skorPattern;
   dataMode = s.dataMode==="custom" ? "custom" : "sample";
@@ -923,10 +1029,11 @@ function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
   PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false };
+  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
   LIBUR = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
   seedSample();
+  initJadwal();
   selDay = TODAY_K;
   const bn=$("#sampleBanner"); if(bn) bn.style.display="";
   show("today"); renderAll(); renderSettings();
@@ -940,6 +1047,7 @@ function clearAllEntries(){
 }
 seedSample();
 loadStore();
+initJadwal();
 (function bindStorageButtons(){
   const rb=$("#resetSampleBtn"); if(rb) rb.addEventListener("click", ()=>armConfirm(rb, resetToSample));
   const cb=$("#clearEntriesBtn"); if(cb) cb.addEventListener("click", ()=>armConfirm(cb, clearAllEntries));
@@ -1031,7 +1139,7 @@ function renderCountdown(){
   /* Libur yang dikeluarkan — supaya angka bisa diperiksa */
   h += '<div class="secttl" style="margin-top:18px">Libur yang dikeluarkan dari hitungan</div><ul class="hollist">'
     + TW4_HOLIDAYS.map(x=>'<li><span class="dt">'+esc(fmtTglPanjang(x.date))+'</span><span class="lb">'+esc(x.label)+'</span></li>').join("")
-    + '</ul><p class="small muted" style="margin:6px 0 0">Sabtu &amp; Minggu juga tidak dihitung. Libur/cuti lain yang Anda tandai sendiri di Kalender tidak mengubah hitungan panel ini.</p>';
+    + '</ul><p class="small muted" style="margin:6px 0 0">Sabtu &amp; Minggu juga tidak dihitung. Libur/cuti lain yang Anda tandai sendiri di Pengaturan Jadwal tidak mengubah hitungan panel ini.</p>';
   el.innerHTML = h;
   const wz = $("#cdWizard"); if (wz) wz.addEventListener("click", ()=>openWizard(0));
 }
@@ -1046,6 +1154,7 @@ function entryTags(e){
   if (de.estimasi && de.menit) h+='<span class="chip amber">Durasi estimasi ±'+de.menit+' mnt</span>';
   if (e.start && e.end && !jamValid(e.start, e.end).ok) h+='<span class="chip red">⚠ Jam tidak masuk akal</span>';
   if (aksesEntry(e)==="privat") h+='<span class="chip purple">Privat</span>';
+  if (e.mode==="WFH") h+='<span class="chip blue">WFH</span>';
   return h;
 }
 function entryRow(e, extraTag){
@@ -1099,7 +1208,7 @@ function monthSets(y, m){
   for(let d=1; d<=dim; d++){
     const dt=new Date(y,m,d), k=dkey(dt);
     if (ENTRIES.some(e=>e.date===k)) filled.add(k);
-    else if (isWorkday(dt) && dt<TODAY && !liburOn(k)) gaps.push(k);
+    else if (isWorkday(dt) && dt<TODAY && !liburCutiOn(k)) gaps.push(k);
   }
   return {filled, gaps};
 }
@@ -1120,7 +1229,8 @@ function renderCal(){
     let cls="day";
     const tgt = targetMenit(k);
     const mins = ENTRIES.filter(e=>e.date===k).reduce((a,e)=>a+durasiEntry(e).menit,0);
-    if (liburOn(k)) cls+=" libur";
+    const lb = liburCutiOn(k);
+    if (lb) cls+=" libur";
     else if (tgt>0 && mins>=tgt) cls+=" full";
     else if (mins>0 && tgt>0) cls+=" part";
     else if (mins>0) cls+=" has";
@@ -1129,7 +1239,8 @@ function renderCal(){
     else if (dt>TODAY) cls+=" future";
     if (k===TODAY_K) cls+=" today";
     if (k===selDay) cls+=" sel";
-    html+='<button class="'+cls+'" data-day="'+k+'">'+d+'</button>';
+    const wfhMark = (!lb && isWfhDay(k)) ? '<span class="wfhmark">WFH</span>' : '';
+    html+='<button class="'+cls+'" data-day="'+k+'">'+d+wfhMark+'</button>';
   }
   $("#calGrid").innerHTML=html;
   $$("#calGrid [data-day]").forEach(b=>b.addEventListener("click", ()=>{ selDay=b.dataset.day; renderCal(); }));
@@ -1141,7 +1252,7 @@ function renderCal(){
     '<div class="s"><b>'+wdDone+'<span style="font-size:15px;color:var(--muted)">/'+wdTotal+'</span></b><span>hari kerja tercatat</span></div>'
     + '<div class="s"><b>'+entriBulan+'</b><span>entri bulan ini</span></div>'
     + '<div class="s"><b>'+streak+'</b><span>hari berturut-turut</span></div>';
-  renderJadwal(); renderWeek(); renderLibur();
+  renderJadwal(); renderWeek();
   if (gaps.length){
     $("#gapCard").style.display="block";
     $("#gapTitle").textContent = gaps.length+" hari kosong";
@@ -1162,10 +1273,11 @@ function renderJadwal(){
   const tgt = targetMenit(TODAY_K);
   const mins = ENTRIES.filter(e=>e.date===TODAY_K).reduce((a,e)=>a+durasiEntry(e).menit,0);
   const pct = tgt? Math.min(100, Math.round(mins/tgt*100)) : 100;
-  const lb = liburOn(TODAY_K);
+  const lb = liburCutiOn(TODAY_K);
   el.innerHTML = '<h3>Jadwal kerja efektif Kemenag</h3>'
     + '<p class="small muted" style="margin:0">Senin–Kamis 07.30–16.00 · Jumat 07.30–16.30 · efektif <b>7 jam 30 menit/hari</b>. Ramadan: 6 jam 30 menit/hari. Akhir pekan &amp; hari libur/cuti tidak dihitung kekurangan; catatan akhir pekan tampil terpisah dan lembur satu hari tidak menutup hari lain.</p>'
     + (lb ? '<p style="margin:10px 0 0"><span class="chip purple">Hari ini: '+esc(lb.label)+' ('+(lb.tipe==="cuti"?"Cuti":"Libur")+') — tanpa target jam</span></p>' : '')
+    + (!lb && isWfhDay(TODAY_K) ? '<p style="margin:10px 0 0"><span class="chip blue">Hari ini WFH</span> <span class="small muted">Target jam tetap berlaku seperti hari kerja biasa.</span></p>' : '')
     + '<div class="rowflex" style="margin-top:12px"><b class="grow">Hari ini: '+fmtDurasi(mins)+' dari target '+fmtDurasi(tgt)+'</b><span class="chip '+(pct>=100?"green":pct>0?"amber":"red")+'">'+pct+'%</span></div>'
     + '<div class="bar"><i class="'+(pct>=100?"":pct>0?"amber":"red")+'" style="width:'+Math.max(pct, mins?8:0)+'%"></i></div>'
     + (isRamadan(TODAY_K) ? '<p class="small muted" style="margin:0">Periode Ramadan — target hari ini 6 jam 30 menit.</p>' : '');
@@ -1184,22 +1296,101 @@ function renderWeek(){
   el.innerHTML = '<h3>Jam terpenuhi vs target — minggu ini</h3><div class="weekbars">'+bars+'</div>'
     + '<p class="small muted" style="margin:8px 0 0">Total tercatat '+fmtDurasi(totM)+' dari target '+fmtDurasi(totT)+' (Senin s.d. hari ini). Jam tumpang tindih antar-entri tidak digandakan dalam penilaian manual Anda — periksa entri yang jamnya bertumpuk.</p>';
 }
-function renderLibur(){
-  const el = $("#liburCard"); if(!el) return;
-  const list = LIBUR.slice().sort((a,b)=>a.date<b.date?-1:1);
-  el.innerHTML = '<h3>Hari libur &amp; cuti</h3>'
-    + '<p class="small muted" style="margin:0">Tandai libur nasional (SKB 3 Menteri), cuti bersama, atau cuti pribadi. Hari yang ditandai berwarna ungu di kalender, tanpa target jam, dan tidak dihitung hari kosong. Daftar libur nasional resmi bisa ditambahkan satu per satu di sini; sinkron otomatis menyusul bersama Batch 2 (GAS).</p>'
-    + (list.length ? list.map((l,i)=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+fmtTglPanjang(l.date)+'</b><br/><span class="small muted">'+esc(l.label)+' · '+(l.tipe==="cuti"?"Cuti":"Libur")+'</span></span><button class="linkbtn" data-libur-del="'+l.date+'" style="color:var(--red)">Hapus</button></div>').join("") : '<p class="small muted" style="margin-top:10px">Belum ada hari libur/cuti yang ditandai.</p>')
-    + '<div class="timerow"><input type="date" id="liburDate" aria-label="Tanggal libur"/><select id="liburTipe" aria-label="Jenis"><option value="libur">Libur</option><option value="cuti">Cuti</option></select></div>'
-    + '<div class="field"><input id="liburLabel" placeholder="Keterangan, cth. Idul Fitri / Cuti tahunan" aria-label="Keterangan libur"/></div>'
-    + '<button class="btn ghost" id="liburAdd" style="margin-top:12px;min-height:44px;width:100%">Tandai hari libur/cuti</button>';
-  el.querySelectorAll("[data-libur-del]").forEach(b=>b.addEventListener("click", ()=>{ LIBUR = LIBUR.filter(l=>l.date!==b.dataset.liburDel); saveStore(); renderCal(); toast("Penanda libur dihapus"); }));
-  const add = el.querySelector("#liburAdd");
-  if (add) add.addEventListener("click", ()=>{
-    const dt = el.querySelector("#liburDate").value; const lb = el.querySelector("#liburLabel").value.trim(); const tp = el.querySelector("#liburTipe").value;
-    if (!dt){ toast("Pilih dulu tanggalnya"); return; }
-    LIBUR = LIBUR.filter(l=>l.date!==dt); LIBUR.push({date:dt, label: lb||(tp==="cuti"?"Cuti":"Hari libur"), tipe:tp});
-    saveStore(); renderCal(); toast("Ditandai sebagai "+(tp==="cuti"?"cuti":"libur"));
+/* ---------------- Pengaturan Jadwal (di tab Pengaturan) ----------------
+   Meniru tab Jadwal versi Claude (patokan screenshot, WFH = Jumat): hari WFH
+   rutin, periode Ramadan yang bisa diubah, dan hari libur & cuti — yang
+   terakhir ini PINDAH dari tab Kalender ke sini; data LIBUR yang sama tetap
+   dibaca kalender, kartu Jadwal Kemenag, dan grafik mingguan. */
+let ramadanFormIdx = null; // null = form periode tertutup · -1 = tambah baru · >=0 = indeks periode yang diubah
+function jenisLabel(tipe){ return tipe==="cuti" ? "Cuti" : tipe==="wfh" ? "WFH" : "Libur Nasional"; }
+function renderJadwalSettings(){
+  const el = $("#jadwalSetCard"); if(!el) return;
+  const periods = ramadanList();
+  const showPast = !!SETTINGS.tampilLewat;
+  const list = LIBUR.slice().sort((a,b)=>a.date<b.date?-1:1).filter(l=> showPast || l.date>=TODAY_K);
+  let h = '<h3>Pengaturan Jadwal</h3>';
+  /* 1 — Hari WFH rutin */
+  h += '<div class="secttl" style="margin-top:2px">Hari WFH rutin</div>'
+    + '<div class="field"><label for="wfhInput">Hari (pisahkan koma, mis. Jumat)</label><input id="wfhInput" value="'+esc((SETTINGS.hariWfh||[]).join(", "))+'" placeholder="cth. Jumat"/></div>'
+    + '<button class="btn ghost" id="wfhSave" type="button" style="min-height:44px;width:100%">Simpan hari WFH</button>'
+    + '<p class="small muted" style="margin:8px 0 0">Catatan pada hari ini otomatis bermode WFH. Mode bisa diubah per catatan.</p>';
+  /* 2 — Periode jadwal khusus (Ramadan) */
+  h += '<div class="secttl" style="margin-top:18px">Periode jadwal khusus (Ramadan)</div>'
+    + '<p class="small muted" style="margin:0">Isi setelah Menteri Agama menetapkan 1 Ramadan. Pada rentang tanggal ini target jam menjadi 6 jam 30 menit/hari.</p>'
+    + (periods.length ? periods.map((r,i)=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+esc(r.label||"Ramadan")+'</b><br/><span class="small muted">'+fmtTglPanjang(r.start)+' s.d. '+fmtTglPanjang(r.end)+'</span></span><button class="linkbtn" data-ram-ubah="'+i+'">Ubah</button><button class="linkbtn" data-ram-del="'+i+'" style="color:var(--red)">Hapus</button></div>').join("") : '<p class="small muted" style="margin-top:10px">Belum ada periode Ramadan tersimpan.</p>');
+  if (ramadanFormIdx===null){
+    h += '<button class="btn ghost" id="ramAdd" type="button" style="margin-top:12px;min-height:44px;width:100%">+ Tambah periode</button>';
+  } else {
+    const cur = ramadanFormIdx>=0 ? periods[ramadanFormIdx] : null;
+    h += '<div style="border-top:1px solid var(--line);margin-top:12px;padding-top:4px">'
+      + '<div class="field"><label for="ramLabel">Label periode</label><input id="ramLabel" value="'+esc(cur?cur.label:"")+'" placeholder="cth. Ramadan 1448 H"/></div>'
+      + '<div class="timerow"><div class="field"><label for="ramStart">Tanggal mulai</label><input type="date" id="ramStart" value="'+(cur?cur.start:"")+'"/></div><div class="field"><label for="ramEnd">Tanggal selesai</label><input type="date" id="ramEnd" value="'+(cur?cur.end:"")+'"/></div></div>'
+      + '<div style="display:flex;gap:10px;margin-top:12px"><button class="btn plain" id="ramCancel" type="button" style="flex:1;min-height:46px">Batal</button><button class="btn primary" id="ramSave" type="button" style="flex:1.4;width:auto;min-height:46px">Simpan periode</button></div></div>';
+  }
+  /* 3 — Hari libur dan cuti */
+  h += '<div class="secttl" style="margin-top:18px">Hari libur dan cuti</div>'
+    + '<p class="small muted" style="margin:0">Hari libur/cuti berwarna ungu di kalender, tanpa target jam, dan tidak dihitung hari kosong. Jenis WFH menandai hari itu sebagai hari WFH per tanggal — catatan otomatis bermode WFH, tetapi target jam tetap berlaku.</p>'
+    + '<div class="field"><label for="liburJenis">Jenis</label><select id="liburJenis"><option value="libur">Libur Nasional</option><option value="cutib">Cuti Bersama</option><option value="cutip">Cuti Pribadi</option><option value="wfh">WFH</option></select></div>'
+    + '<div class="timerow"><div class="field"><label for="liburMulai">Tanggal mulai</label><input type="date" id="liburMulai"/></div><div class="field"><label for="liburSelesai">Tanggal selesai (kosong = satu hari)</label><input type="date" id="liburSelesai"/></div></div>'
+    + '<div class="field"><label for="liburLabel">Keterangan</label><input id="liburLabel" placeholder="mis. Urusan keluarga"/></div>'
+    + '<button class="btn primary" id="liburAdd" type="button" style="margin-top:12px;min-height:46px;width:100%">Tambahkan</button>'
+    + '<label style="display:flex;gap:9px;align-items:center;margin-top:14px;font-size:15px;cursor:pointer"><input type="checkbox" id="liburLewat"'+(showPast?" checked":"")+' style="width:19px;height:19px;flex:none"/> Tampilkan yang sudah lewat</label>'
+    + (list.length ? list.map(l=>'<div class="switchrow"><span class="grow"><b style="font-size:15px">'+fmtTglPanjang(l.date)+'</b><br/><span class="small muted">'+esc(l.label)+' · '+jenisLabel(l.tipe)+(l.resmi?' (resmi)':'')+'</span></span><button class="linkbtn" data-libur-del="'+l.date+'" style="color:var(--red)">Hapus</button></div>').join("") : '<p class="small muted" style="margin-top:10px">'+(showPast ? "Belum ada hari libur/cuti yang ditandai." : "Tidak ada entri mendatang — centang “Tampilkan yang sudah lewat” untuk melihat semuanya.")+'</p>');
+  el.innerHTML = h;
+  /* --- ikat WFH rutin --- */
+  el.querySelector("#wfhSave").addEventListener("click", ()=>{
+    const hasil = parseHariWfh(el.querySelector("#wfhInput").value);
+    SETTINGS.hariWfh = hasil.hari;
+    jadwalChanged(); renderJadwalSettings(); renderCal();
+    if (hasil.asing.length) toast("Hari WFH tersimpan: "+(hasil.hari.join(", ")||"—")+" · tidak dikenali & diabaikan: "+hasil.asing.join(", "));
+    else toast(hasil.hari.length ? "Hari WFH tersimpan: "+hasil.hari.join(", ") : "Hari WFH dikosongkan — tidak ada hari WFH rutin");
+  });
+  /* --- ikat periode Ramadan --- */
+  const ramAdd = el.querySelector("#ramAdd");
+  if (ramAdd) ramAdd.addEventListener("click", ()=>{ ramadanFormIdx = -1; renderJadwalSettings(); });
+  el.querySelectorAll("[data-ram-ubah]").forEach(b=>b.addEventListener("click", ()=>{ ramadanFormIdx = Number(b.dataset.ramUbah); renderJadwalSettings(); }));
+  el.querySelectorAll("[data-ram-del]").forEach(b=>b.addEventListener("click", ()=>{
+    const arr = ramadanList().slice(); arr.splice(Number(b.dataset.ramDel), 1);
+    SETTINGS.periodeRamadan = arr; ramadanFormIdx = null;
+    jadwalChanged(); renderJadwalSettings(); renderCal(); toast("Periode Ramadan dihapus");
+  }));
+  const ramCancel = el.querySelector("#ramCancel");
+  if (ramCancel) ramCancel.addEventListener("click", ()=>{ ramadanFormIdx = null; renderJadwalSettings(); });
+  const ramSave = el.querySelector("#ramSave");
+  if (ramSave) ramSave.addEventListener("click", ()=>{
+    const label = el.querySelector("#ramLabel").value.trim();
+    const start = el.querySelector("#ramStart").value, end = el.querySelector("#ramEnd").value;
+    if (!start || !end){ toast("Isi dulu tanggal mulai & selesai periodenya"); return; }
+    if (end < start){ toast("Tanggal selesai harus setelah tanggal mulai"); return; }
+    const arr = ramadanList().slice();
+    const rec = { label: label || "Ramadan", start, end };
+    if (ramadanFormIdx>=0) arr[ramadanFormIdx] = rec; else arr.push(rec);
+    arr.sort((a,b)=> a.start<b.start?-1 : a.start>b.start?1 : 0);
+    SETTINGS.periodeRamadan = arr; ramadanFormIdx = null;
+    jadwalChanged(); renderJadwalSettings(); renderCal(); toast("Periode "+rec.label+" tersimpan");
+  });
+  /* --- ikat libur & cuti --- */
+  const lewat = el.querySelector("#liburLewat");
+  if (lewat) lewat.addEventListener("change", ()=>{ SETTINGS.tampilLewat = lewat.checked; saveStore(); renderJadwalSettings(); });
+  el.querySelectorAll("[data-libur-del]").forEach(b=>b.addEventListener("click", ()=>{ LIBUR = LIBUR.filter(l=>l.date!==b.dataset.liburDel); jadwalChanged(); renderJadwalSettings(); renderCal(); toast("Penanda libur dihapus"); }));
+  el.querySelector("#liburAdd").addEventListener("click", ()=>{
+    const mulai = el.querySelector("#liburMulai").value;
+    const selesai = el.querySelector("#liburSelesai").value || mulai;
+    const jenis = el.querySelector("#liburJenis").value;
+    const ket = el.querySelector("#liburLabel").value.trim();
+    if (!mulai){ toast("Pilih dulu tanggal mulainya"); return; }
+    if (selesai < mulai){ toast("Tanggal selesai harus setelah tanggal mulai"); return; }
+    const tipe = jenis==="libur" ? "libur" : jenis==="wfh" ? "wfh" : "cuti"; // Cuti Bersama & Cuti Pribadi sama-sama "cuti"
+    const label = ket || jenisLabel(tipe);
+    let n = 0; const d = parseKey(mulai); const akhir = parseKey(selesai);
+    while (d && akhir && d<=akhir && n<366){
+      const k = dkey(d);
+      LIBUR = LIBUR.filter(l=>l.date!==k); LIBUR.push({ date:k, label, tipe, resmi:false });
+      n++; d.setDate(d.getDate()+1);
+    }
+    LIBUR.sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : 0);
+    jadwalChanged(); renderJadwalSettings(); renderCal();
+    toast(n>1 ? n+" hari ditandai sebagai "+jenisLabel(tipe).toLowerCase() : "Ditandai sebagai "+jenisLabel(tipe).toLowerCase());
   });
 }
 
@@ -1381,6 +1572,7 @@ function openEntry(id){
     ez.innerHTML = '<div class="card" style="margin-top:14px"><h3 style="font-size:15px;margin-bottom:2px">Ubah entri lengkap</h3>'
       + '<p class="small muted" style="margin:0">Tanggal, jam, RHK, jumlah, uraian &amp; realisasi bisa diubah. Durasi dihitung ulang dari jam oleh Progresio — bukan dari teks AI.'+(jv.ok?"":' <span class="warnjam" style="color:var(--amber);font-weight:700">⚠ '+esc(jv.msg)+' pada entri ini.</span>')+'</p>'
       + '<div class="field"><label for="edDate">Tanggal</label><input type="date" id="edDate" value="'+e.date+'"/></div>'
+      + '<div class="field"><label for="edMode">Mode kerja</label><select id="edMode"><option value=""'+(e.mode==="WFH"?"":" selected")+'>Kantor</option><option value="WFH"'+(e.mode==="WFH"?" selected":"")+'>WFH</option></select></div>'
       + '<div class="timerow"><div class="field"><label for="edStart">Jam mulai</label><input type="time" id="edStart" value="'+(e.start?e.start.replace(".",":"):"")+'"/></div><div class="field"><label for="edEnd">Jam selesai</label><input type="time" id="edEnd" value="'+(e.end?e.end.replace(".",":"):"")+'"/></div></div>'
       + '<div class="timerow"><div class="field"><label for="edJumlah">Jumlah realisasi</label><input type="number" id="edJumlah" min="0" step="1" value="'+(e.jumlah!=null?e.jumlah:1)+'"/></div><div class="field"><label>Satuan (dari RHK)</label><input id="edSatuan" value="'+esc(e.satuan||(r?r.satuan:"")||"")+'" readonly/></div></div>'
       + '<div class="field"><label for="edUraian">Uraian pekerjaan</label><input id="edUraian" value="'+esc(e.uraian||"")+'"/></div>'
@@ -1391,6 +1583,7 @@ function openEntry(id){
     $("#edStart").addEventListener("input", updDur); $("#edEnd").addEventListener("input", updDur); updDur();
     $("#edApply").addEventListener("click", ()=>{
       e.date = $("#edDate").value || e.date;
+      e.mode = $("#edMode").value || "";
       e.start = $("#edStart").value.replace(":", "."); e.end = $("#edEnd").value.replace(":", ".");
       e.jumlah = Math.max(0, Number($("#edJumlah").value)||0);
       e.uraian = $("#edUraian").value.trim(); e.realisasi = $("#edRealisasi").value.trim();
@@ -1992,6 +2185,7 @@ function renderDrafts(aiNote){
         uraian:d.uraian || "Kegiatan", realisasi:d.realisasi || "",
         jumlah:(d.jumlah!=null?d.jumlah:1), satuan: r? (r.satuan||"") : (d.satuan||""),
         durasiMenit: hitungDurasi(d.start, d.end), estimasi:false, akses:"",
+        mode: isWfhDay(sheetDate) ? "WFH" : "",
         files: idx===0 ? sheetFiles.slice() : [], link: idx===0 ? sheetFiles.length>0 : false,
         src: sheetMode==="suara"?"Suara":"Ketik", via:d.via, keyakinan:d.keyakinan };
       ENTRIES.push(e); made.push(e);
@@ -2068,7 +2262,7 @@ function renderSettings(){
   ).join("") + '<button class="btn primary" id="openWizard" style="margin-top:16px">Buka wizard konfigurasi awal</button>';
   $$("#setList [data-wiz]").forEach(b=>b.addEventListener("click", ()=>openWizard(Number(b.dataset.wiz))));
   $("#openWizard").addEventListener("click", ()=>openWizard(0));
-  renderRhkMeta(); renderAiDiag(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
+  renderRhkMeta(); renderJadwalSettings(); renderAiDiag(); renderGasCard(); renderDriveFolderCard(); renderEvidenSettings();
   updateStorageStatus();
 }
 function renderRhkMeta(){
@@ -2691,7 +2885,7 @@ function entryToGas(e){
   return { clientId: clientIdOf(e), tanggal: e.date, rhkId: e.rhk || null, aksi: e.aksi || "",
     jamMulai: (e.start||"").replace(".",":"), jamSelesai: (e.end||"").replace(".",":"),
     uraian: e.uraian || "", realisasi: e.realisasi || "", jumlah: e.jumlah!=null ? e.jumlah : 1,
-    akses: aksesEntry(e), sumber: e.src || "PWA" };
+    akses: aksesEntry(e), sumber: e.src || "PWA", mode: e.mode || "" }; // mode = field tambahan payload (bukan bagian 7 kolom C–I)
 }
 function profilToGas(){
   return { nama:PROFILE.nama||"", nip:PROFILE.nip||"", pangkat:PROFILE.pangkat||"", jabatan:PROFILE.jabatan||"",
@@ -2710,6 +2904,7 @@ function mergePulledEntries(list){
     if (!local && se.id) local = ENTRIES.find(e=>e.logId===se.id);
     if (local){
       local.logId = se.id || local.logId; if (se.clientId) local.clientId = se.clientId; local.synced = true;
+      if (se.mode) local.mode = se.mode;
       if (se.folderEvidenId) local.folderId = se.folderEvidenId;
       if (se.folderEvidenUrl) local.folderUrl = se.folderEvidenUrl;
       if (se.linkBukti){ local.driveUrl = se.linkBukti; local.link = true; }
@@ -2719,7 +2914,7 @@ function mergePulledEntries(list){
       date: se.tanggal || TODAY_K, start:(se.jamMulai||"").replace(":", "."), end:(se.jamSelesai||"").replace(":", "."),
       rhk: se.rhkId || null, aksi: se.aksi || "", uraian: se.uraian || "", realisasi: se.realisasi || "",
       jumlah: se.jumlah!=null ? se.jumlah : 1, satuan: se.satuan || "", durasiMenit: se.durasiMenit || 0, estimasi:false,
-      akses: se.akses || "", files: [], link: !!se.linkBukti, driveUrl: se.linkBukti || "", folderId: se.folderEvidenId || "", folderUrl: se.folderEvidenUrl || "",
+      akses: se.akses || "", mode: se.mode || "", files: [], link: !!se.linkBukti, driveUrl: se.linkBukti || "", folderId: se.folderEvidenId || "", folderUrl: se.folderEvidenUrl || "",
       src: se.sumber || "GAS", synced:true });
   });
   ENTRIES.sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.start||"")<(b.start||"")?-1:1);
@@ -3120,7 +3315,7 @@ async function syncNow(opts){
   try{
     const valid = ENTRIES.filter(e=>jamValid(e.start, e.end).ok);
     rep.skipped = ENTRIES.length - valid.length;
-    const pushRes = await gasCall({ action:"syncPush", profil: profilToGas(), rhks: RHKS.map(rhkToGas), entri: valid.map(entryToGas) });
+    const pushRes = await gasCall({ action:"syncPush", profil: profilToGas(), rhks: RHKS.map(rhkToGas), entri: valid.map(entryToGas), jadwal: jadwalPayload() });
     (pushRes.hasilEntri || []).forEach(hsl=>{
       const e = ENTRIES.find(x=>clientIdOf(x)===hsl.clientId);
       if (!e) return;
@@ -3138,6 +3333,17 @@ async function syncNow(opts){
       RHKS.sort((a,b)=>a.id-b.id);
     }
     if (Array.isArray(pull.entri)){ rep.pulled = pull.entri.length; mergePulledEntries(pull.entri); }
+    /* Pengaturan jadwal dari server (persiapan — server menyusul): dijaga
+       penuh karena server saat ini belum mengembalikan "jadwal". Salinan
+       server hanya diterapkan bila diubahPada-nya lebih baru dari lokal. */
+    if (pull.jadwal && typeof pull.jadwal==="object" && (pull.jadwal.diubahPada||0) > (SETTINGS.jadwalDiubahPada||0)){
+      const sj = pull.jadwal;
+      if (Array.isArray(sj.wfh)) SETTINGS.hariWfh = sj.wfh.slice();
+      if (Array.isArray(sj.ramadan) && sj.ramadan.length) SETTINGS.periodeRamadan = sj.ramadan.map(r=>({ label:r.label||"", start:r.start, end:r.end }));
+      if (Array.isArray(sj.libur)) LIBUR = sj.libur.map(l=>({ date:l.date, label:l.label||"", tipe:l.tipe||"libur", resmi:!!l.resmi }));
+      SETTINGS.jadwalDiubahPada = sj.diubahPada||0;
+      SETTINGS.liburResmiDimuat = true;
+    }
     /* Unggah eviden SETELAH tarik data: tarikan membawa ID folder Drive
        tiap entri (folderEvidenId) yang dibutuhkan jalur unggah langsung
        dari aplikasi ke Drive pada backend Worker. */
