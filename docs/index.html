@@ -2424,7 +2424,9 @@ async function exportZIP(sel){
    berfungsi penuh secara lokal dan status koneksinya ditampilkan apa adanya.
    Kontrak server (Code.gs Batch 2): login PIN → token sesi 6 jam;
    syncPush/syncPull anti-ganda via Client_ID (server membalas ID LOG-xxxx);
-   uploadEviden base64 maks 10 MB ke folder per kegiatan YYYY-MM-DD_LOG-xxxx;
+   uploadEviden base64 maks 10 MB ke folder per kegiatan YYYY-MM-DD_LOG-xxxx
+   (hanya backend GAS — backend Worker memakai unggah langsung dari aplikasi
+   ke Drive + aksi catatEviden, lihat bagian unggah di bawah);
    listFolderTerbuka & tutupAkses untuk folder Drive yang terbuka. */
 let GAS_PING = null;    // hasil tes koneksi terakhir {ok, waktu, msg?, data?}
 let GAS_FOLDERS = null; // daftar folder terbuka dari Drive (null = belum dimuat dari server)
@@ -2627,6 +2629,7 @@ function mergePulledEntries(list){
     if (!local && se.id) local = ENTRIES.find(e=>e.logId===se.id);
     if (local){
       local.logId = se.id || local.logId; if (se.clientId) local.clientId = se.clientId; local.synced = true;
+      if (se.folderEvidenId) local.folderId = se.folderEvidenId;
       if (se.folderEvidenUrl) local.folderUrl = se.folderEvidenUrl;
       if (se.linkBukti){ local.driveUrl = se.linkBukti; local.link = true; }
       return;
@@ -2635,7 +2638,7 @@ function mergePulledEntries(list){
       date: se.tanggal || TODAY_K, start:(se.jamMulai||"").replace(":", "."), end:(se.jamSelesai||"").replace(":", "."),
       rhk: se.rhkId || null, aksi: se.aksi || "", uraian: se.uraian || "", realisasi: se.realisasi || "",
       jumlah: se.jumlah!=null ? se.jumlah : 1, satuan: se.satuan || "", durasiMenit: se.durasiMenit || 0, estimasi:false,
-      akses: se.akses || "", files: [], link: !!se.linkBukti, driveUrl: se.linkBukti || "", folderUrl: se.folderEvidenUrl || "",
+      akses: se.akses || "", files: [], link: !!se.linkBukti, driveUrl: se.linkBukti || "", folderId: se.folderEvidenId || "", folderUrl: se.folderEvidenUrl || "",
       src: se.sumber || "GAS", synced:true });
   });
   ENTRIES.sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.start||"")<(b.start||"")?-1:1);
@@ -2654,9 +2657,13 @@ async function gasRefreshFolders(){
    dibuka ulang; chip Hari ini berubah merah; kartu Koneksi menampilkan kotak
    peringatan berisi daftar berkas + penyebab + tombol “Coba unggah ulang”
    yang HANYA mengunggah eviden (entri tidak dikirim ulang). Foto besar
-   dikompres dulu sebelum dikirim supaya tidak masuk jalur resumable >5 MB
-   di Worker yang rapuh. Berkas yang isi aslinya sudah tidak ada di sesi ini
-   (aplikasi sempat ditutup) ditandai jujur: perlu dilampirkan ulang. */
+   dikompres dulu sebelum dikirim supaya unggahannya ringan. Berkas yang
+   isi aslinya sudah tidak ada di sesi ini (aplikasi sempat ditutup)
+   ditandai jujur: perlu dilampirkan ulang.
+   Lanjutan 2026-11-27 (kasus “Service Accounts do not have storage quota”):
+   pada backend Worker berkas tidak lagi dikirim lewat server — aplikasi
+   mengunggahnya langsung ke folder Drive kegiatan atas nama akun Google
+   pengguna (lihat bagian “Unggah langsung ke Drive” di bawah). */
 function pendingUploadFiles(){
   const out = { failed:[], pending:[], reattach:[] };
   if (dataMode==="sample") return out;
@@ -2695,13 +2702,146 @@ async function prepareUploadPayload(f){
     return { blob:blob, nama:String(f.name||"foto").replace(/\.[^.]+$/, "")+".jpg", mime:"image/jpeg" };
   }catch(_){ return asli; }
 }
+/* ---------------- Unggah langsung ke Drive (backend Worker) ----------------
+   Keputusan Ardian 2026-11-27: eviden diunggah LANGSUNG dari aplikasi ke
+   folder kegiatan yang sudah ada di Drive pengguna — tidak lewat Worker.
+   Latar: service account Worker tidak punya kuota penyimpanan Drive
+   ("Service Accounts do not have storage quota"), jadi unggah berkas apa
+   pun lewat server selalu ditolak Google; folder bisa dibuat server karena
+   folder tidak makan kuota. Dengan jalur ini berkas diunggah atas nama
+   akun Google pengguna sendiri (token OAuth GIS, scope Drive penuh karena
+   folder kegiatan dibuat service account) sehingga berkasnya dimiliki
+   langsung oleh pengguna. Token akses HANYA hidup di memori sesi ini —
+   tidak pernah disimpan ke localStorage. Setelah berkas masuk folder,
+   Worker diberitahu lewat aksi catatEviden: server memverifikasi berkas
+   benar berada di folder entri itu, menerapkan akses folder, dan menulis
+   Link Bukti Dukung ke Log_Kerja. Backend GAS tidak berubah: GAS berjalan
+   sebagai pengguna sendiri, jadi jalur uploadEviden base64 lama tetap
+   dipakai di sana. */
+let driveToken = "";       // token akses Drive sesi ini (memori saja)
+let driveTokenExp = 0;     // cap waktu token kedaluwarsa (ms)
+function driveErrText(err){
+  const t = (err && (err.type || err.error)) || "";
+  if (t==="popup_closed") return "Jendela izin Google ditutup sebelum selesai — tekan “Coba unggah ulang” lalu setujui izin Drive-nya.";
+  if (t==="popup_failed_to_open" || t==="popup_blocked") return "Jendela izin Google terblokir peramban — izinkan popup untuk situs ini, lalu tekan “Coba unggah ulang”.";
+  if (t==="access_denied") return "Izin Drive ditolak — unggah langsung perlu izin mengelola file Drive Anda; setujui saat diminta Google.";
+  if (t==="immediate_failed" || t==="id_token_unknown") return "Izin akses Drive diperlukan untuk mengunggah eviden langsung ke Drive Anda — tekan “Coba unggah ulang” lalu setujui izin Drive-nya.";
+  return "Izin akses Drive belum didapat dari Google"+(t ? " ("+t+")" : "")+" — tekan “Coba unggah ulang”.";
+}
+function driveRequestToken(promptVal){
+  return new Promise((resolve, reject)=>{
+    if (!(window.google && google.accounts && google.accounts.oauth2)){
+      reject(new Error("Pustaka Google belum termuat — periksa koneksi internet, lalu coba lagi."));
+      return;
+    }
+    try{
+      const tc = google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: "https://www.googleapis.com/auth/drive",
+        callback: (resp)=>{
+          if (resp && resp.access_token){
+            driveToken = resp.access_token;
+            driveTokenExp = Date.now() + (Math.max(60, (Number(resp.expires_in)||3600) - 60) * 1000);
+            resolve(driveToken);
+          } else {
+            reject(new Error("Google tidak memberikan token akses Drive — coba lagi."));
+          }
+        },
+        error_callback: (err)=>reject(new Error(driveErrText(err)))
+      });
+      tc.requestAccessToken({ prompt: promptVal });
+    }catch(err){
+      reject(new Error("Izin Drive gagal diminta: "+((err && err.message) || err)));
+    }
+  });
+}
+/* Ambil token Drive: pakai yang tersimpan di memori bila masih berlaku;
+   coba diam-diam dulu (prompt "none" — berhasil bila izin Drive sudah
+   pernah diberikan), dan hanya tampilkan jendela izin Google bila
+   interactive=true (berasal dari ketukan pengguna, mis. tombol unggah
+   ulang / sinkron manual) supaya popup tidak terblokir diam-diam. */
+async function driveEnsureToken(interactive){
+  if (driveToken && Date.now() < driveTokenExp) return driveToken;
+  try{ return await driveRequestToken("none"); }
+  catch(e1){
+    if (!interactive) throw e1;
+    return await driveRequestToken("");
+  }
+}
+/* Unggah satu berkas ke Drive lewat upload multipart (batas eviden 10 MB,
+   jadi satu kiriman cukup — tanpa sesi resumable). Memakai token pengguna,
+   jadi berkas hasil unggah dimiliki akun Google pengguna sendiri. */
+async function driveUploadFile(token, folderId, pay){
+  const boundary = "progresio-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 10);
+  const meta = JSON.stringify({ name: pay.nama, parents: [folderId] });
+  const head = "--" + boundary + "\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n" + meta
+    + "\r\n--" + boundary + "\r\nContent-Type: " + (pay.mime || "application/octet-stream") + "\r\n\r\n";
+  const body = new Blob([head, pay.blob, "\r\n--" + boundary + "--"], { type: "multipart/related; boundary=" + boundary });
+  const ctrl = new AbortController(); const to = setTimeout(()=>ctrl.abort(), 120000);
+  let res;
+  try{
+    res = await fetch("https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&fields=id,name,size,mimeType",
+      { method:"POST", headers:{ Authorization:"Bearer " + token }, body:body, signal:ctrl.signal });
+  }catch(err){
+    clearTimeout(to);
+    throw new Error(err && err.name==="AbortError"
+      ? "Unggah ke Drive melewati batas waktu 120 detik — periksa jaringan, lalu coba lagi."
+      : "Drive tidak terjangkau dari perangkat ini — periksa jaringan, lalu coba lagi.");
+  }
+  clearTimeout(to);
+  let data = null; try{ data = await res.json(); }catch(_){}
+  if (!res.ok || !data || !data.id){
+    if (res.status===401 || res.status===403){ driveToken = ""; driveTokenExp = 0; }
+    const msg = (data && data.error && data.error.message) ? data.error.message : ("Drive menjawab HTTP " + res.status + " tanpa isi yang dikenal");
+    throw new Error("Google Drive: " + msg);
+  }
+  return data;
+}
+/* Konteks satu putaran unggah: untuk backend Worker, token Drive diambil
+   SEKALI di awal putaran (bukan per berkas) — bila gagal, galatnya disimpan
+   dan dipakai sebagai penyebab yang sama untuk semua berkas tertunda,
+   supaya tidak ada rentetan popup / percobaan sia-sia. */
+async function uploadCtx(interactive){
+  const ctx = { interactive: !!interactive, token:"", tokenErr:null };
+  if (backendKind(gasUrlVal())==="worker"){
+    try{ ctx.token = await driveEnsureToken(!!interactive); }
+    catch(err){ ctx.tokenErr = err; }
+  }
+  return ctx;
+}
 /* Unggah SATU berkas eviden dengan maksimal 2 percobaan (jeda 2 detik).
-   Status berkas diperbarui apa pun hasilnya — tidak ada galat yang ditelan. */
-async function uploadOneEviden(e, f){
+   Status berkas diperbarui apa pun hasilnya — tidak ada galat yang ditelan.
+   Worker: unggah langsung ke Drive pengguna lalu catatEviden ke server.
+   GAS: jalur lama uploadEviden base64 lewat server (berjalan sebagai
+   pengguna, tidak kena batas kuota service account). */
+async function uploadOneEviden(e, f, ctx){
+  ctx = ctx || {};
+  const worker = backendKind(gasUrlVal())==="worker";
+  if (worker && ctx.tokenErr){
+    f.upState = "failed"; f.upTries = (f.upTries||0)+1; f.upError = ctx.tokenErr.message;
+    return false;
+  }
   let lastErr = null;
   for (let attempt=1; attempt<=2; attempt++){
     try{
       const pay = await prepareUploadPayload(f);
+      if (worker){
+        if (!e.folderId) throw new Error("ID folder eviden entri ini belum terbaca aplikasi — jalankan “Sinkronkan sekarang” sekali lagi supaya ID foldernya terbaca dari server, lalu unggah ulang.");
+        const token = ctx.token || await driveEnsureToken(!!ctx.interactive);
+        let fileId = f.driveFileId || "";
+        if (!fileId){
+          const upFile = await driveUploadFile(token, e.folderId, pay);
+          fileId = upFile.id;
+          f.driveFileId = fileId; // tersimpan: bila catatEviden gagal, ulangan tidak mengunggah berkas yang sama dua kali
+        }
+        const up = await gasCall({ action:"catatEviden", idLog: e.logId, berkas:{ fileId:fileId, nama:pay.nama, mime:pay.mime, ukuran:pay.blob.size } }, 60000);
+        f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || fileId;
+        if (pay.nama !== f.name){ f.name = pay.nama; f.size = pay.blob.size; f.type = pay.mime; }
+        if (up.linkBukti){ e.driveUrl = up.linkBukti; e.link = true; }
+        if (up.folderUrl) e.folderUrl = up.folderUrl;
+        if (up.folderId) e.folderId = up.folderId;
+        return true;
+      }
       const b64 = await fileToB64(pay.blob);
       const up = await gasCall({ action:"uploadEviden", idLog: e.logId, berkas:{ nama:pay.nama, mime:pay.mime, base64:b64 } }, 120000);
       f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || f.driveFileId || "";
@@ -2720,12 +2860,14 @@ async function uploadOneEviden(e, f){
 }
 /* Satu putaran unggah untuk semua entri ber-ID LOG yang berkasnya tertunda
    dan isi aslinya masih ada di sesi ini. Mengisi rep.uploaded / rep.upFailed. */
-async function runUploadPass(rep){
+async function runUploadPass(rep, interactive){
+  let ctx = null;
   for (const e of ENTRIES){
     if (!e.logId) continue;
     for (const f of e.files){
       if (!f.file || f.uploaded) continue;
-      if (await uploadOneEviden(e, f)) rep.uploaded++; else rep.upFailed++;
+      if (!ctx) ctx = await uploadCtx(interactive);
+      if (await uploadOneEviden(e, f, ctx)) rep.uploaded++; else rep.upFailed++;
     }
   }
 }
@@ -2740,12 +2882,28 @@ async function retryUploads(onlyEntryId){
   if ($("#view-entri").classList.contains("active") && typeof currentEntry!=="undefined" && currentEntry) renderEntriFiles(currentEntry);
   const rep = { uploaded:0, upFailed:0 };
   try{
+    /* Backend Worker mengunggah langsung ke Drive dan butuh ID folder
+       kegiatan per entri (e.folderId, terbaca dari syncPull). Bila ada
+       entri tertunda yang ID foldernya belum terbaca (mis. tersinkron oleh
+       versi aplikasi lama), tarik dulu data server sekali — hanya baca,
+       entri tidak dikirim ulang. */
+    if (backendKind(gasUrlVal())==="worker"){
+      const perluFolder = ENTRIES.some(e=>e.logId && !e.folderId
+        && (!onlyEntryId || e.id===onlyEntryId)
+        && (e.files||[]).some(f=>f.file && !f.uploaded));
+      if (perluFolder){
+        try{ const pull0 = await gasCall({ action:"syncPull" }); if (Array.isArray(pull0.entri)) mergePulledEntries(pull0.entri); }
+        catch(_){ /* gagal tarik: berkas terkait akan gagal dengan pesan ID folder belum terbaca */ }
+      }
+    }
+    let ctx = null;
     for (const e of ENTRIES){
       if (!e.logId) continue;
       if (onlyEntryId && e.id!==onlyEntryId) continue;
       for (const f of e.files){
         if (!f.file || f.uploaded) continue;
-        if (await uploadOneEviden(e, f)) rep.uploaded++; else rep.upFailed++;
+        if (!ctx) ctx = await uploadCtx(true); // dari ketukan pengguna: jendela izin Drive boleh tampil
+        if (await uploadOneEviden(e, f, ctx)) rep.uploaded++; else rep.upFailed++;
       }
     }
   }finally{
@@ -2759,10 +2917,12 @@ async function retryUploads(onlyEntryId){
   else toast("Tidak ada eviden tertunda yang berkasnya masih ada di sesi ini — yang berkasnya hilang perlu dilampirkan ulang dari entrinya");
   return rep;
 }
-/* Sinkron dua arah: dorong profil/RHK/entri (Client_ID anti-ganda), unggah
-   eviden yang berkas aslinya masih ada di sesi ini, lalu tarik & gabungkan
-   data server (termasuk link folder Drive asli untuk kolom 7). Entri tanpa
-   jam lengkap dilewati — server memang menolaknya — dan dilaporkan jujur. */
+/* Sinkron dua arah: dorong profil/RHK/entri (Client_ID anti-ganda), tarik &
+   gabungkan data server (termasuk link folder Drive asli untuk kolom 7 dan
+   ID folder Drive tiap entri), lalu unggah eviden yang berkas aslinya masih
+   ada di sesi ini — pada backend Worker unggahnya langsung dari aplikasi ke
+   Drive pengguna, bukan lewat server. Entri tanpa jam lengkap dilewati —
+   server memang menolaknya — dan dilaporkan jujur. */
 async function syncNow(opts){
   opts = opts || {};
   if (gasSyncBusy){ gasSyncQueued = true; return null; }
@@ -2781,7 +2941,6 @@ async function syncNow(opts){
       if (hsl.id){ e.logId = hsl.id; e.clientId = hsl.clientId; }
       if (hsl.status==="tersimpan"){ e.synced = true; rep.pushed++; } else rep.failed++;
     });
-    await runUploadPass(rep);
     const pull = await gasCall({ action:"syncPull" });
     if (pull.profil && Object.keys(pull.profil).length) PROFILE = Object.assign({}, PROFILE, pull.profil);
     if (Array.isArray(pull.rhks) && pull.rhks.length){
@@ -2793,6 +2952,10 @@ async function syncNow(opts){
       RHKS.sort((a,b)=>a.id-b.id);
     }
     if (Array.isArray(pull.entri)){ rep.pulled = pull.entri.length; mergePulledEntries(pull.entri); }
+    /* Unggah eviden SETELAH tarik data: tarikan membawa ID folder Drive
+       tiap entri (folderEvidenId) yang dibutuhkan jalur unggah langsung
+       dari aplikasi ke Drive pada backend Worker. */
+    await runUploadPass(rep, !opts.silent);
     SETTINGS.lastSync = rep; saveStore();
     gasRefreshFolders();
     /* Gagal unggah eviden tidak boleh tenggelam di laporan kecil: bunyikan
@@ -2901,7 +3064,7 @@ function renderGasCard(){
   if (gasSessionValid()){
     h += '<p style="margin:14px 0 0"><span class="chip green">Sesi '+namaBackend+' aktif</span> <span class="small muted">berlaku 6 jam'+(SETTINGS.gasSesiSampai ? ' · sampai '+esc(new Date(SETTINGS.gasSesiSampai).toLocaleString("id-ID")) : '')+'</span></p>'
       + '<button class="btn primary" id="gasSyncBtn" style="margin-top:12px;min-height:48px"'+(gasSyncBusy?" disabled":"")+'>'+(gasSyncBusy ? "Menyinkronkan…" : "Sinkronkan sekarang")+'</button>'
-      + '<p class="small muted" style="margin:8px 0 0">Sinkron dua arah: entri/RHK/profil didorong ke Sheets (kirim ulang tidak menggandakan — server mencocokkan Client_ID dan membalas ID LOG-xxxx), eviden terunggah ke folder Drive per kegiatan, lalu data &amp; link folder asli ditarik kembali ke kolom 7.</p>'
+      + '<p class="small muted" style="margin:8px 0 0">Sinkron dua arah: entri/RHK/profil didorong ke Sheets (kirim ulang tidak menggandakan — server mencocokkan Client_ID dan membalas ID LOG-xxxx), data &amp; link folder asli ditarik kembali ke kolom 7, lalu eviden diunggah ke folder Drive per kegiatan'+(kind==="worker" ? ' — langsung dari aplikasi ini ke Drive Anda atas nama akun Google Anda (bukan lewat server), jadi pertama kali mengunggah akan muncul permintaan izin Drive dari Google' : '')+'.</p>'
       + '<div style="display:flex;gap:8px;margin-top:12px">'
       + (kind==="gas" ? '<button class="btn ghost" id="gasPinBtn" style="flex:1;min-height:44px">'+(gasPinFormOpen ? "Tutup ganti PIN" : "Ganti PIN")+'</button>' : '')
       + '<button class="btn plain" id="gasLogoutBtn" style="flex:1;min-height:44px">Keluar sesi</button>'
