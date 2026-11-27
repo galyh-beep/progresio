@@ -103,13 +103,36 @@
       .scorebox .n{font-size:24px;font-weight:800;line-height:1.05}
       .scorebox .t{font-size:12px;color:#A9BED4;font-weight:600}
 
-      /* ---------- Hitung mundur TW IV ---------- */
-      .cdgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
-      .cdbox{padding:12px 2px 4px}
-      .cdbox .n{font-size:32px;font-weight:800;line-height:1.05}
-      .cdbox .n small{font-size:15px;font-weight:700;color:var(--muted)}
-      .cdbox .t{font-size:13px;color:var(--muted);margin-top:3px;line-height:1.4}
-      .cdbox .t b{color:var(--ink)}
+      /* ---------- Hitung mundur TW IV (tegas, seirama kartu tenggat) ---------- */
+      .cdcard{background:var(--navy);color:#EAF1F8;border-radius:var(--radius);padding:16px;margin-top:14px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+      .cdcard::before{content:"";position:absolute;top:0;left:0;right:0;height:4px;background:var(--emerald)}
+      .cdcard .cdhead{display:flex;gap:12px;align-items:center}
+      .cdcard .cdic{width:42px;height:42px;border-radius:11px;background:var(--emerald);color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+      .cdcard .cdic svg{width:21px;height:21px}
+      .cdcard h3{margin:0;color:#fff;font-size:var(--fs-title)}
+      .cdcard .cdsub{font-size:13px;color:#A9BED4;margin-top:1px;line-height:1.4}
+      .cdgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+      .cdbox{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.13);border-radius:12px;padding:12px 13px 11px}
+      .cdbox .n{font-size:38px;font-weight:800;line-height:1;color:#fff}
+      .cdbox .n small{font-size:13px;font-weight:700;color:#A9BED4;margin-left:2px}
+      .cdbox.close .n{color:#5ED3A5}
+      .cdbox .t{font-size:13px;color:#A9BED4;margin-top:6px;line-height:1.45}
+      .cdbox .t b{color:#fff}
+      .cdcard .closedbox{background:rgba(94,211,165,.16);color:#5ED3A5;margin-top:14px}
+
+      /* ---------- Panel tab rencana & libur (di bawah hitung mundur) ---------- */
+      .cdseg{display:flex;background:var(--surface2);border-radius:12px;padding:4px}
+      .cdseg button{flex:1;border:none;background:transparent;padding:9px 6px;border-radius:9px;font-weight:700;font-size:14px;color:var(--muted);min-height:42px}
+      .cdseg button.on{background:var(--surface);color:var(--ink);box-shadow:var(--shadow)}
+      .cdtabpanel{padding-top:4px}
+
+      /* ---------- Akordion ---------- */
+      .acchead{display:flex;align-items:center;gap:10px;background:none;border:none;padding:0;color:var(--ink);text-align:left;min-height:44px;font-family:inherit}
+      .acchead .accttl{font-size:var(--fs-title);font-weight:700}
+      .acchead .chev{width:30px;height:30px;border-radius:9px;background:var(--surface2);color:var(--muted);display:flex;align-items:center;justify-content:center;flex:none;margin-left:auto}
+      .acchead .chev svg{width:16px;height:16px;transition:transform .2s var(--ease)}
+      .acchead[aria-expanded="false"] .chev svg{transform:rotate(-90deg)}
+      .accbody.closed{display:none}
       .planrow{padding:11px 0;border-top:1px solid var(--line)}
       .planrow:first-of-type{border-top:none}
       .planrow .nm{font-weight:700}
@@ -445,12 +468,13 @@
           </div>
           <p class="small muted" style="margin:7px 2px 0">Skor kesiapan = hitungan Progresio dari bukti yang tercatat — <b>bukan predikat resmi</b>. Ketuk skor untuk rincian per RHK.</p>
 
-          <div class="card" id="cdCard"></div>
+          <div class="cdcard" id="cdCard"></div>
+          <div class="card" id="cdPanel" style="padding:14px 16px"></div>
 
           <div class="catat">
             <div class="rowflex">
               <div class="plus"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></div>
-              <div><b>Catat kerjaan</b><span>Tadi ngapain? 30 detik, beres.</span></div>
+              <div><b>Catat Kinerja Hari Ini</b><span>Tadi ngapain? 30 detik, beres.</span></div>
             </div>
             <div class="modes">
               <button data-mode="ketik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M6 14h.01M18 14h.01M9 14h6"/></svg>Ketik</button>
@@ -460,10 +484,13 @@
           </div>
 
           <div class="rowflex" style="margin-top:20px">
-            <div class="secttl grow" style="margin:0" id="todayCount">Entri hari ini</div>
+            <button class="acchead grow" type="button" data-acc="todayEntries" aria-expanded="true" aria-label="Buka/tutup daftar entri hari ini">
+              <span class="secttl" style="margin:0" id="todayCount">Entri hari ini</span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
             <button class="linkbtn" id="copyAllToday">Salin semua</button>
           </div>
-          <div class="card" style="margin-top:8px;padding-top:4px;padding-bottom:4px" id="todayEntries"></div>
+          <div class="card accbody" data-accbody="todayEntries" style="margin-top:8px;padding-top:4px;padding-bottom:4px" id="todayEntries"></div>
 
           <div class="streak" id="streakBox"></div>
         </main>
@@ -488,8 +515,20 @@
             </div>
           </div>
           <div class="stat3" id="calStats"></div>
-          <div class="card" id="jadwalCard"></div>
-          <div class="card" id="weekCard"></div>
+          <div class="card">
+            <button class="acchead" type="button" data-acc="jadwal" aria-expanded="true" style="width:100%" aria-label="Buka/tutup jadwal kerja efektif Kemenag">
+              <span class="accttl">Jadwal kerja efektif Kemenag</span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
+            <div class="accbody" data-accbody="jadwal" id="jadwalCard"></div>
+          </div>
+          <div class="card">
+            <button class="acchead" type="button" data-acc="week" aria-expanded="false" style="width:100%" aria-label="Buka/tutup grafik jam minggu ini">
+              <span class="accttl">Jam terpenuhi vs target — minggu ini</span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
+            <div class="accbody closed" data-accbody="week" id="weekCard"></div>
+          </div>
           <div class="card" id="gapCard" style="display:none">
             <div class="rowflex">
               <div class="grow"><b id="gapTitle">Ada hari kosong</b><div class="small muted" id="gapText"></div></div>
@@ -497,10 +536,13 @@
             </div>
           </div>
           <div class="rowflex" style="margin-top:20px">
-            <div class="grow"><b id="selDayTitle" style="font-size:17px">—</b><div class="small muted" id="selDayCount"></div></div>
+            <button class="acchead grow" type="button" data-acc="dayEntries" aria-expanded="true" aria-label="Buka/tutup daftar entri hari terpilih">
+              <span><b id="selDayTitle" style="font-size:17px;display:block">—</b><span class="small muted" id="selDayCount" style="display:block"></span></span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
             <button class="linkbtn" id="copyDay">Salin semua</button>
           </div>
-          <div class="card" style="margin-top:8px;padding-top:4px;padding-bottom:4px" id="dayEntries"></div>
+          <div class="card accbody" data-accbody="dayEntries" style="margin-top:8px;padding-top:4px;padding-bottom:4px" id="dayEntries"></div>
         </main>
       </section>
 
@@ -514,7 +556,11 @@
             </div>
             <div class="rekapstats" id="rekapStats"></div>
           </div>
-          <div class="card" id="rekapList"></div>
+          <button class="acchead" type="button" data-acc="rekap" aria-expanded="true" style="width:100%;margin-top:18px" aria-label="Buka/tutup kemajuan per RHK">
+            <span class="secttl" style="margin:0">Kemajuan per RHK</span>
+            <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+          </button>
+          <div class="card accbody" data-accbody="rekap" style="margin-top:8px" id="rekapList"></div>
           <button class="btn primary" id="copyRekap" style="margin-top:16px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="14" height="14" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>Salin rekap per RHK</button>
           <p class="disclaimer">Rekap dihitung dari entri dan bukti yang tercatat di Progresio pada triwulan berjalan.</p>
         </main>
@@ -588,8 +634,11 @@
             </div>
           </div>
           <div class="card">
-            <h3>Tentang Fase 2 — Otak AI</h3>
-            <p class="small muted" style="margin:0">Bila kunci Gemini terisi, catatan ketik &amp; suara diproses Gemini langsung dari peramban ini — failover 3 model, urutan kelancaran: utama <b>gemini-3.5-flash-lite</b>, cadangan gemini-3.1-flash-lite, terakhir gemini-3.8-flash (bisa diganti di wizard Koneksi): teks dirapikan, jam mulai–selesai dan jumlah realisasi diekstrak mengikuti Satuan &amp; Aturan Hitung RHK, durasi dihitung ulang dari jam oleh kode, lalu catatan dicocokkan semantik ke RHK. Hasilnya menjadi <b>kartu draf</b> dulu — tombol Simpan draf baru aktif bila jam mulai–selesai lengkap. Bila tidak ada RHK yang benar-benar cocok, entri ditandai “belum terpetakan” — tidak dikarang — dan bisa dipetakan manual dari halaman entri. Tanpa kunci atau saat Gemini tak terjangkau, pencocokan kata kunci lokal di perangkat menjadi cadangan. Sinkron backend — entri, RHK &amp; profil ke Sheets, eviden ke folder Drive, link folder asli di kolom 7 — diatur dari kartu Koneksi Worker di atas; Telegram menyusul di fase berikutnya. Data tersimpan di localStorage perangkat ini.</p>
+            <button class="acchead" type="button" data-acc="tentang" aria-expanded="false" style="width:100%" aria-label="Buka/tutup penjelasan Fase 2 — Otak AI">
+              <span class="accttl">Tentang Fase 2 — Otak AI</span>
+              <span class="chev"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg></span>
+            </button>
+            <div class="accbody closed" data-accbody="tentang"><p class="small muted" style="margin:6px 0 0">Bila kunci Gemini terisi, catatan ketik &amp; suara diproses Gemini langsung dari peramban ini — failover 3 model, urutan kelancaran: utama <b>gemini-3.5-flash-lite</b>, cadangan gemini-3.1-flash-lite, terakhir gemini-3.8-flash (bisa diganti di wizard Koneksi): teks dirapikan, jam mulai–selesai dan jumlah realisasi diekstrak mengikuti Satuan &amp; Aturan Hitung RHK, durasi dihitung ulang dari jam oleh kode, lalu catatan dicocokkan semantik ke RHK. Hasilnya menjadi <b>kartu draf</b> dulu — tombol Simpan draf baru aktif bila jam mulai–selesai lengkap. Bila tidak ada RHK yang benar-benar cocok, entri ditandai “belum terpetakan” — tidak dikarang — dan bisa dipetakan manual dari halaman entri. Tanpa kunci atau saat Gemini tak terjangkau, pencocokan kata kunci lokal di perangkat menjadi cadangan. Sinkron backend — entri, RHK &amp; profil ke Sheets, eviden ke folder Drive, link folder asli di kolom 7 — diatur dari kartu Koneksi Worker di atas; Telegram menyusul di fase berikutnya. Data tersimpan di localStorage perangkat ini.</p></div>
           </div>
         </main>
       </section>
@@ -649,9 +698,9 @@
 
     <!-- ================= SHEET: CATAT ================= -->
     <div class="scrim" id="scrim"></div>
-    <div class="sheet" id="catatSheet" role="dialog" aria-label="Catat kerjaan">
+    <div class="sheet" id="catatSheet" role="dialog" aria-label="Catat Kinerja Hari Ini">
       <button class="iconbtn x" id="sheetClose" aria-label="Tutup"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
-      <div class="rowflex"><h3 class="grow">Catat kerjaan</h3><span class="small" id="sheetDate" style="font-weight:700;color:var(--muted)">—</span></div>
+      <div class="rowflex"><h3 class="grow">Catat Kinerja Hari Ini</h3><span class="small" id="sheetDate" style="font-weight:700;color:var(--muted)">—</span></div>
       <div class="modetabs" id="modeTabs">
         <button data-m="ketik"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="2" y="6" width="20" height="12" rx="2"/><path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M9 14h6"/></svg>Ketik</button>
         <button data-m="suara"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><path d="M12 19v3"/></svg>Suara</button>
@@ -995,11 +1044,14 @@ function updateStorageStatus(){
   const el = $("#storageStatus"); if(!el) return;
   el.textContent = (dataMode==="sample" ? "Mode data contoh" : "Data Anda tersimpan") + " · " + ENTRIES.length + " entri · " + RHKS.length + " RHK · tersimpan otomatis setiap ada perubahan.";
 }
+/* Keadaan tampilan per perangkat: akordion yang dilipat/dibuka + tab panel
+   hitung mundur yang terakhir dipilih. Ikut tersimpan di store yang sama. */
+let UI_STATE = { acc:{}, cdTab:"rencana" };
 function saveStore(){
   try{
     localStorage.setItem(STORE_KEY, JSON.stringify({ v:1, dataMode:dataMode, profile:PROFILE, settings:SETTINGS, rhks:RHKS, libur:LIBUR,
       entries: ENTRIES.map(e=>Object.assign({}, e, {files:cleanFiles(e.files)})),
-      entrySeq:entrySeq, skorPattern:SKOR_PATTERN }));
+      entrySeq:entrySeq, skorPattern:SKOR_PATTERN, ui:UI_STATE }));
   }catch(err){}
   updateStorageStatus();
 }
@@ -1028,6 +1080,7 @@ function loadStore(){
   if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"", mode:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", driveNama:f.driveNama||"", driveMime:f.driveMime||"", driveUkuran:f.driveUkuran||0, upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
   if (typeof s.entrySeq==="number" && s.entrySeq>entrySeq) entrySeq = s.entrySeq;
   if (s.skorPattern) SKOR_PATTERN = s.skorPattern;
+  if (s.ui){ UI_STATE = Object.assign({ acc:{}, cdTab:"rencana" }, s.ui); if (!UI_STATE.acc || typeof UI_STATE.acc!=="object") UI_STATE.acc = {}; }
   dataMode = s.dataMode==="custom" ? "custom" : "sample";
 }
 function armConfirm(btn, fn){
@@ -1118,41 +1171,83 @@ function tw4WorkdaysLeft(targetK){
 }
 function renderCountdown(){
   const el = $("#cdCard"); if(!el) return;
-  let h = '<h3>Hitung Mundur Triwulan IV</h3>';
+  let h = '<div class="cdhead"><span class="cdic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5"/><path d="M9.5 2h5"/></svg></span>'
+    + '<span><h3>Hitung mundur Triwulan IV</h3><div class="cdsub">Dihitung per '+esc(fmtTglPanjang(TODAY_K))+' — hari kerja Senin–Jumat, termasuk hari ini</div></span></div>';
   if (TODAY_K > TW4_CLOSE_K){
     h += '<div class="closedbox">Triwulan IV sudah ditutup — penutupan 15 Januari 2027 telah lewat. Hitung mundur berhenti di sini; entri dan RHK Anda tetap tersimpan seperti sebelumnya.</div>';
     el.innerHTML = h;
+    renderCdPanel();
     return;
   }
   const dEval = tw4WorkdaysLeft(TW4_EVAL_K), dClose = tw4WorkdaysLeft(TW4_CLOSE_K);
-  h += '<p class="small muted" style="margin:0">Dihitung per <b style="color:var(--ink)">'+esc(fmtTglPanjang(TODAY_K))+'</b> — hanya hari kerja Senin–Jumat, termasuk hari ini, libur di bawah dikeluarkan.</p>';
   h += '<div class="cdgrid">'
-    + '<div class="cdbox"><div class="n">'+dEval+' <small>hari kerja</small></div><div class="t">menuju <b>31 Desember 2026</b><br/>batas evaluasi</div></div>'
-    + '<div class="cdbox"><div class="n">'+dClose+' <small>hari kerja</small></div><div class="t">menuju <b>15 Januari 2027</b><br/>penutupan Triwulan IV</div></div>'
+    + '<div class="cdbox"><div class="n">'+dEval+'<small>hari kerja</small></div><div class="t">menuju <b>31 Desember 2026</b><br/>batas evaluasi</div></div>'
+    + '<div class="cdbox close"><div class="n">'+dClose+'<small>hari kerja</small></div><div class="t">menuju <b>15 Januari 2027</b><br/>penutupan Triwulan IV</div></div>'
     + '</div>';
-  /* Rencana catat per RHK sampai penutupan */
-  h += '<div class="secttl" style="margin-top:18px">Rencana catat per RHK · sampai penutupan</div>';
-  if (!RHKS.length){
-    h += '<p class="small muted" style="margin:8px 0 0">Belum ada RHK tersimpan, jadi rencana catat belum bisa disusun. Isi RHK dulu lewat wizard — tempel daftar RHK dari SKP Anda — lalu rencana per RHK muncul di sini.</p>'
-      + '<button class="btn ghost" id="cdWizard" style="width:100%;margin-top:12px;min-height:46px">Isi RHK lewat wizard</button>';
-  } else {
-    const weeks = Math.max(1, Math.ceil(dClose/5)); // sisa minggu kerja (5 hari kerja per minggu)
-    h += '<p class="small muted" style="margin:6px 0 2px">Patokan ritme: <b style="color:var(--ink)">1 entri per RHK per minggu</b> — sisa '+weeks+' minggu kerja sampai penutupan. Saran di bawah = target ritme dikurangi yang sudah tercatat di Triwulan IV (1 Okt 2026 – 15 Jan 2027).</p>';
-    h += RHKS.map(r=>{
-      const done = ENTRIES.filter(e=> e.rhk===r.id && e.date>="2026-10-01" && e.date<=TW4_CLOSE_K).length;
-      const saran = Math.max(0, weeks - done);
-      const det = saran>0
-        ? 'Sudah tercatat <b>'+done+' entri</b> · saran <b>±'+saran+' entri lagi</b> — ritme ±1 entri per minggu (±1 entri tiap 5 hari kerja).'
-        : 'Sudah tercatat <b>'+done+' entri</b> · ritme mingguan <b>sudah terpenuhi</b> — tinggal jaga jangan sampai ada minggu kosong.';
-      return '<div class="planrow"><div class="rowflex"><span class="rhktag">RHK '+r.id+'</span><span class="nm grow">'+esc(r.name)+'</span></div><div class="det">'+det+'</div></div>';
-    }).join("");
-  }
-  /* Libur yang dikeluarkan — supaya angka bisa diperiksa */
-  h += '<div class="secttl" style="margin-top:18px">Libur yang dikeluarkan dari hitungan</div><ul class="hollist">'
-    + TW4_HOLIDAYS.map(x=>'<li><span class="dt">'+esc(fmtTglPanjang(x.date))+'</span><span class="lb">'+esc(x.label)+'</span></li>').join("")
-    + '</ul><p class="small muted" style="margin:6px 0 0">Sabtu &amp; Minggu juga tidak dihitung. Libur/cuti lain yang Anda tandai sendiri di Pengaturan Jadwal tidak mengubah hitungan panel ini.</p>';
   el.innerHTML = h;
-  const wz = $("#cdWizard"); if (wz) wz.addEventListener("click", ()=>openWizard(0));
+  renderCdPanel();
+}
+/* Panel tab di bawah kartu hitung mundur: rencana catat per RHK dan libur
+   yang dikeluarkan dari hitungan — masing-masing tab sendiri, hanya satu
+   panel terlihat dalam satu waktu, pilihan tab tersimpan per perangkat. */
+function renderCdPanel(){
+  const el = $("#cdPanel"); if(!el) return;
+  const tab = UI_STATE.cdTab==="libur" ? "libur" : "rencana";
+  let h = '<div class="cdseg" role="tablist" aria-label="Rencana catat dan libur dikeluarkan">'
+    + '<button type="button" role="tab" aria-selected="'+(tab==="rencana")+'" data-cdtab="rencana" class="'+(tab==="rencana"?"on":"")+'">Rencana catat</button>'
+    + '<button type="button" role="tab" aria-selected="'+(tab==="libur")+'" data-cdtab="libur" class="'+(tab==="libur"?"on":"")+'">Libur dikeluarkan</button></div>';
+  if (tab==="rencana"){
+    h += '<div class="cdtabpanel">';
+    if (!RHKS.length){
+      h += '<p class="small muted" style="margin:8px 0 0">Belum ada RHK tersimpan, jadi rencana catat belum bisa disusun. Isi RHK dulu lewat wizard — tempel daftar RHK dari SKP Anda — lalu rencana per RHK muncul di sini.</p>'
+        + '<button class="btn ghost" id="cdWizard" style="width:100%;margin-top:12px;min-height:46px">Isi RHK lewat wizard</button>';
+    } else {
+      const dClose = tw4WorkdaysLeft(TW4_CLOSE_K);
+      const weeks = Math.max(1, Math.ceil(dClose/5)); // sisa minggu kerja (5 hari kerja per minggu)
+      h += '<p class="small muted" style="margin:6px 0 2px">Patokan ritme: <b style="color:var(--ink)">1 entri per RHK per minggu</b> — sisa '+weeks+' minggu kerja sampai penutupan. Saran di bawah = target ritme dikurangi yang sudah tercatat di Triwulan IV (1 Okt 2026 – 15 Jan 2027).</p>';
+      h += RHKS.map(r=>{
+        const done = ENTRIES.filter(e=> e.rhk===r.id && e.date>="2026-10-01" && e.date<=TW4_CLOSE_K).length;
+        const saran = Math.max(0, weeks - done);
+        const det = saran>0
+          ? 'Sudah tercatat <b>'+done+' entri</b> · saran <b>±'+saran+' entri lagi</b> — ritme ±1 entri per minggu (±1 entri tiap 5 hari kerja).'
+          : 'Sudah tercatat <b>'+done+' entri</b> · ritme mingguan <b>sudah terpenuhi</b> — tinggal jaga jangan sampai ada minggu kosong.';
+        return '<div class="planrow"><div class="rowflex"><span class="rhktag">RHK '+r.id+'</span><span class="nm grow">'+esc(r.name)+'</span></div><div class="det">'+det+'</div></div>';
+      }).join("");
+    }
+    h += '</div>';
+  } else {
+    h += '<div class="cdtabpanel"><ul class="hollist">'
+      + TW4_HOLIDAYS.map(x=>'<li><span class="dt">'+esc(fmtTglPanjang(x.date))+'</span><span class="lb">'+esc(x.label)+'</span></li>').join("")
+      + '</ul><p class="small muted" style="margin:6px 0 0">Sabtu &amp; Minggu juga tidak dihitung. Libur/cuti lain yang Anda tandai sendiri di Pengaturan Jadwal tidak mengubah hitungan panel ini.</p></div>';
+  }
+  el.innerHTML = h;
+  el.querySelectorAll("[data-cdtab]").forEach(b=>b.addEventListener("click", ()=>{ UI_STATE.cdTab = b.dataset.cdtab; saveStore(); renderCdPanel(); }));
+  const wz = el.querySelector("#cdWizard"); if (wz) wz.addEventListener("click", ()=>openWizard(0));
+}
+/* ---------------- Akordion ----------------
+   Header selalu terlihat; isi dilipat/dibuka; keadaan tersimpan per
+   perangkat lewat UI_STATE.acc di store yang sama. Bawaan: daftar entri,
+   jadwal, dan rekap terbuka; grafik mingguan & penjelasan panjang terlipat. */
+const ACC_DEFAULTS = { todayEntries:true, dayEntries:true, rekap:true, jadwal:true, week:false, tentang:false };
+function accOpen(key){
+  const v = UI_STATE.acc[key];
+  return v===undefined ? ACC_DEFAULTS[key]!==false : !!v;
+}
+function applyAccordions(){
+  $$("[data-acc]").forEach(btn=>{
+    const key = btn.dataset.acc, open = accOpen(key);
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+    $$('[data-accbody="'+key+'"]').forEach(b=>b.classList.toggle("closed", !open));
+  });
+}
+function initAccordions(){
+  $$("[data-acc]").forEach(btn=>btn.addEventListener("click", ()=>{
+    const key = btn.dataset.acc;
+    UI_STATE.acc[key] = !accOpen(key);
+    saveStore();
+    applyAccordions();
+  }));
+  applyAccordions();
 }
 function entryTags(e){
   let h="";
@@ -1201,7 +1296,7 @@ function renderToday(){
   const list = ENTRIES.filter(e=>e.date===TODAY_K);
   $("#todayCount").textContent = "Entri hari ini · "+list.length;
   const firstRhk3 = list.find(e=>e.rhk===3 && e.link);
-  $("#todayEntries").innerHTML = list.length ? list.map(e=> entryRow(e, (firstRhk3 && e.id===firstRhk3.id) ? '<span class="chip blue">Bukti pertama RHK 3</span>' : "")).join("") : '<p class="muted" style="padding:14px 0">Belum ada entri hari ini. Ketuk “Catat kerjaan” di atas.</p>';
+  $("#todayEntries").innerHTML = list.length ? list.map(e=> entryRow(e, (firstRhk3 && e.id===firstRhk3.id) ? '<span class="chip blue">Bukti pertama RHK 3</span>' : "")).join("") : '<p class="muted" style="padding:14px 0">Belum ada entri hari ini. Ketuk “Catat Kinerja Hari Ini” di atas.</p>';
   bindEntryRows($("#todayEntries"));
   // streak hari kerja berturut-turut
   let streak=0; const cur=new Date(TODAY);
@@ -1285,8 +1380,7 @@ function renderJadwal(){
   const mins = ENTRIES.filter(e=>e.date===TODAY_K).reduce((a,e)=>a+durasiEntry(e).menit,0);
   const pct = tgt? Math.min(100, Math.round(mins/tgt*100)) : 100;
   const lb = liburCutiOn(TODAY_K);
-  el.innerHTML = '<h3>Jadwal kerja efektif Kemenag</h3>'
-    + '<p class="small muted" style="margin:0">Senin–Kamis 07.30–16.00 · Jumat 07.30–16.30 · efektif <b>7 jam 30 menit/hari</b>. Ramadan: 6 jam 30 menit/hari. Akhir pekan &amp; hari libur/cuti tidak dihitung kekurangan; catatan akhir pekan tampil terpisah dan lembur satu hari tidak menutup hari lain.</p>'
+  el.innerHTML = '<p class="small muted" style="margin:6px 0 0">Senin–Kamis 07.30–16.00 · Jumat 07.30–16.30 · efektif <b>7 jam 30 menit/hari</b>. Ramadan: 6 jam 30 menit/hari. Akhir pekan &amp; hari libur/cuti tidak dihitung kekurangan; catatan akhir pekan tampil terpisah dan lembur satu hari tidak menutup hari lain.</p>'
     + (lb ? '<p style="margin:10px 0 0"><span class="chip purple">Hari ini: '+esc(lb.label)+' ('+(lb.tipe==="cuti"?"Cuti":"Libur")+') — tanpa target jam</span></p>' : '')
     + (!lb && isWfhDay(TODAY_K) ? '<p style="margin:10px 0 0"><span class="chip blue">Hari ini WFH</span> <span class="small muted">Target jam tetap berlaku seperti hari kerja biasa.</span></p>' : '')
     + '<div class="rowflex" style="margin-top:12px"><b class="grow">Hari ini: '+fmtDurasi(mins)+' dari target '+fmtDurasi(tgt)+'</b><span class="chip '+(pct>=100?"green":pct>0?"amber":"red")+'">'+pct+'%</span></div>'
@@ -1304,7 +1398,7 @@ function renderWeek(){
     const pct = tgt? Math.min(100, Math.round(mins/tgt*100)) : (mins?100:0);
     bars += '<div class="wb"><div class="col"><div class="fill '+(tgt===0?"none":pct>=100?"":"part")+'" style="height:'+pct+'%"></div></div><span>'+HARI_S[d.getDay()]+'</span><b>'+(tgt? Math.round(mins/60*10)/10+"j" : "—")+'</b></div>';
   }
-  el.innerHTML = '<h3>Jam terpenuhi vs target — minggu ini</h3><div class="weekbars">'+bars+'</div>'
+  el.innerHTML = '<div class="weekbars">'+bars+'</div>'
     + '<p class="small muted" style="margin:8px 0 0">Total tercatat '+fmtDurasi(totM)+' dari target '+fmtDurasi(totT)+' (Senin s.d. hari ini). Jam tumpang tindih antar-entri tidak digandakan dalam penilaian manual Anda — periksa entri yang jamnya bertumpuk.</p>';
 }
 /* ---------------- Pengaturan Jadwal (di tab Pengaturan) ----------------
@@ -1777,7 +1871,7 @@ $("#entriFileInput").addEventListener("change", ev=>{
   ev.target.value="";
 });
 
-/* ---------------- Sheet: Catat kerjaan ---------------- */
+/* ---------------- Sheet: Catat Kinerja Hari Ini ---------------- */
 let sheetFiles = [], sheetMode = "ketik", sheetDate = TODAY_K, recog = null, recTimer = null, recSec = 0, sheetRhkChoice; // sheetRhkChoice: undefined = otomatis, "" = dipilih "belum dipetakan", angka = RHK pilihan manual
 (function buildWave(){ $("#wave").innerHTML = Array.from({length:26},(_,i)=>'<i style="height:'+(5+Math.round(Math.abs(Math.sin(i*1.3))*16))+'px;animation-delay:'+(i*40)+'ms"></i>').join(""); })();
 function setMode(m){
@@ -2504,7 +2598,7 @@ function renderWizard(){
       + sw("Pengingat H-3","t_h3",d.settings.remindH3,"Ingatkan 3 hari sebelum tenggat triwulan")
       + sw("Pengingat H-1","t_h1",d.settings.remindH1,"Ingatkan 1 hari sebelum tenggat triwulan")
       + '</div>'
-      + '<p class="small muted" style="margin-top:10px">Alternatif ringan tanpa bot: gunakan tombol Bagikan dari WhatsApp/galeri ke Progresio (Web Share Target) untuk mengirim foto & file langsung ke Catat kerjaan.</p></div>';
+      + '<p class="small muted" style="margin-top:10px">Alternatif ringan tanpa bot: gunakan tombol Bagikan dari WhatsApp/galeri ke Progresio (Web Share Target) untuk mengirim foto & file langsung ke Catat Kinerja Hari Ini.</p></div>';
     $("#t_on").addEventListener("change", e=>{ d.settings.telegramOn=e.target.checked; $("#teleFields").style.display=e.target.checked?"block":"none"; });
     $("#s_token").addEventListener("input", e=>d.settings.botToken=e.target.value);
     $("#s_chat").addEventListener("input", e=>d.settings.chatId=e.target.value);
@@ -3705,6 +3799,7 @@ function renderGasCard(){
 function renderAll(){ renderToday(); renderCountdown(); renderCal(); renderRekap(); renderArsip(); }
 renderSheetFiles();
 checkSessionExpiry(); // pemicu boot: sesi tersimpan yang sudah lewat masa berlakunya langsung ketahuan
+initAccordions();
 renderAll();
 if (dataMode!=="sample") $("#sampleBanner").style.display="none";
 updateStorageStatus();
