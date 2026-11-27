@@ -300,6 +300,8 @@
       .micbtn{width:52px;height:52px;border-radius:50%;background:var(--blue);color:#fff;border:none;display:flex;align-items:center;justify-content:center;flex:none}
       .micbtn svg{width:24px;height:24px}
       .micbtn.rec{background:var(--red);animation:pulse 1.2s infinite}
+      #clearDictBtn{margin-top:10px;min-height:44px;padding:10px 16px}
+      #clearDictBtn.armed{background:var(--red-bg);color:var(--red);border:1px solid var(--red)}
       @keyframes pulse{0%{box-shadow:0 0 0 0 rgba(194,59,59,.4)}100%{box-shadow:0 0 0 14px rgba(194,59,59,0)}}
       .wave{flex:1;display:flex;gap:3px;align-items:center;height:26px;overflow:hidden}
       .wave i{width:4px;border-radius:2px;background:#9DB9EC;height:6px;flex:none}
@@ -723,6 +725,7 @@
           <b id="micTime" style="font-variant-numeric:tabular-nums">0:00</b>
         </div>
         <p class="small muted" id="micHint">Mode suara langsung mulai mendikte — ngomong biasa aja: kegiatan, jam, hasilnya. Ketuk mikrofon buat berhenti.</p>
+        <button class="btn plain" id="clearDictBtn" type="button" style="display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 21-4.3-4.3c-1-1-1-2.5 0-3.4l9.6-9.6c1-1 2.5-1 3.4 0l5.6 5.6c1 1 1 2.5 0 3.4L13 21"/><path d="M22 21H7"/><path d="m5 11 9 9"/></svg><span id="clearDictLbl">Bersihkan hasil dikte</span></button>
       </div>
 
       <textarea class="ta" id="catatText" placeholder="Contoh: Tadi jam sepuluh sampai jam dua belas kurang seperempat rapat koordinasi persiapan layanan akhir tahun, saya yang bikin notulennya, pesertanya tujuh belas orang."></textarea>
@@ -2015,6 +2018,7 @@ function openCatat(mode, dateK){
   if (typeof DRAFTS!=="undefined"){ DRAFTS = []; const da=$("#draftArea"); if(da) da.innerHTML=""; }
   renderAiStatus();
   updateMatch();
+  if (typeof updateClearBtn==="function") updateClearBtn();
 }
 function closeCatat(){ $("#scrim").classList.remove("open"); $("#catatSheet").classList.remove("open"); stopRec(); }
 $("#sheetClose").addEventListener("click", closeCatat);
@@ -2325,6 +2329,7 @@ function launchRecog(){
     $("#catatText").value = (recBase ? recBase.replace(/\s*$/, "") + " " : "") + s;
     recRestartN = 0; // ada hasil → sesi sehat, penghitung sambung ulang direset
     updateMatch();
+    updateClearBtn();
   };
   r.onerror = ev=>{
     const code = (ev && ev.error) || "";
@@ -2410,6 +2415,47 @@ $("#micBtn").addEventListener("click", ()=>{
   startRec();
 });
 
+/* ---------------- Bersihkan hasil dikte ----------------
+   Tombol di panel Suara, tampil hanya bila ada teks yang bisa dibersihkan.
+   Pengaman dua ketukan: ketukan pertama mengaktifkan (label berubah + gaya
+   bahaya, gugur sendiri setelah 3,5 detik), ketukan kedua baru mengosongkan.
+   Yang dibersihkan hanya draf di lembar Catat: kolom catatan + penampung
+   transkrip recBase, supaya rekaman ulang mulai dari teks kosong dan tidak
+   menyambung ke teks lama. Entri yang sudah tersimpan tidak disentuh. */
+let clearArmTimer = null;
+function disarmClearBtn(){
+  clearTimeout(clearArmTimer); clearArmTimer = null;
+  const b = $("#clearDictBtn"); if (!b) return;
+  b.classList.remove("armed");
+  const l = $("#clearDictLbl"); if (l) l.textContent = "Bersihkan hasil dikte";
+}
+function updateClearBtn(){
+  const b = $("#clearDictBtn"); if (!b) return;
+  const has = !!(($("#catatText").value || "").trim() || (recBase || "").trim());
+  b.style.display = has ? "inline-flex" : "none";
+  if (!has) disarmClearBtn();
+}
+$("#clearDictBtn").addEventListener("click", ()=>{
+  const b = $("#clearDictBtn");
+  if (!b.classList.contains("armed")){
+    b.classList.add("armed");
+    $("#clearDictLbl").textContent = "Ketuk sekali lagi untuk mengosongkan";
+    clearTimeout(clearArmTimer);
+    clearArmTimer = setTimeout(disarmClearBtn, 3500);
+    return;
+  }
+  disarmClearBtn();
+  stopRec(); // hentikan sesi berjalan: hasil sesi lama tidak menulis ulang kolom yang baru dikosongkan
+  recBase = "";
+  recSec = 0; $("#micTime").textContent = "0:00";
+  $("#catatText").value = "";
+  updateMatch();
+  updateClearBtn();
+  micStatus("Hasil dikte dibersihkan — ketuk mikrofon untuk merekam ulang dari awal.");
+  toast("Hasil dikte dibersihkan — entri yang sudah tersimpan tidak berubah.");
+});
+$("#catatText").addEventListener("input", updateClearBtn);
+
 /* ---------------- Kartu draf: hasil proses ditinjau dulu, belum tercatat ---------------- */
 let DRAFTS = [];
 function splitKegiatan(txt){
@@ -2477,7 +2523,7 @@ function renderDrafts(aiNote){
     ENTRIES.sort((a,b)=> a.date<b.date?-1 : a.date>b.date?1 : (a.start||"")<(b.start||"")?-1:1);
     saveStore();
     gasAutoSync();
-    $("#catatText").value=""; sheetFiles=[]; renderSheetFiles();
+    $("#catatText").value=""; recBase=""; sheetFiles=[]; renderSheetFiles();
     $("#jamMulai").value=""; $("#jamSelesai").value="";
     sheetRhkChoice = undefined; DRAFTS=[]; renderDrafts();
     selDay = sheetDate;
