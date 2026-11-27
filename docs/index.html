@@ -373,6 +373,15 @@
       .syncchip.err .dot{background:var(--red)}
       @media (prefers-color-scheme: dark){ .syncchip.ok{color:#5ED3A5} }
       .syncchip svg{width:13px;height:13px;flex:none;opacity:.65}
+      .syncchip.warn{color:var(--amber)}
+      .syncchip.warn .dot{background:var(--amber-dot)}
+      .connbanner{display:none;margin-top:12px;border-radius:var(--radius);padding:13px 14px}
+      .connbanner.show{display:block}
+      .connbanner.sesi{background:var(--red-bg);color:var(--red)}
+      .connbanner.net{background:var(--amber-bg);color:var(--amber)}
+      .connbanner p{margin:0;font-size:15px;line-height:1.45;font-weight:600}
+      .connbanner .row{display:flex;gap:8px;margin-top:12px;align-items:center;flex-wrap:wrap}
+      .connbanner .row .btn{min-height:44px;padding:10px 16px;width:auto}
       .syncnudge{position:fixed;left:50%;transform:translate(-50%,16px);bottom:calc(86px + env(safe-area-inset-bottom));width:min(448px,calc(100vw - 24px));background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:0 10px 30px rgba(10,22,36,.25);padding:14px;z-index:55;opacity:0;pointer-events:none;transition:opacity .22s var(--ease),transform .22s var(--ease)}
       .syncnudge.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
       .syncnudge p{margin:0;font-size:15px;line-height:1.45}
@@ -423,6 +432,7 @@
         </div>
         <main>
           <button class="syncchip" id="syncChip" type="button" aria-label="Status sinkronisasi — ketuk untuk membuka kartu koneksi backend di Pengaturan"></button>
+          <div class="connbanner" id="connBanner" role="alert"></div>
           <div class="banner" id="sampleBanner">
             <span><b>Mode data contoh.</b> RHK &amp; entri di bawah ini contoh — ganti lewat wizard Pengaturan kapan saja.</span>
             <button class="linkbtn" id="bannerWizard" style="color:var(--amber)">Atur</button>
@@ -848,7 +858,7 @@ function backendKind(url){
 
 /* ---------------- Profil & pengaturan (contoh) ---------------- */
 let PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
+let SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
 let LIBUR = []; // [{date:"YYYY-MM-DD", label:"…", tipe:"libur"|"cuti"}] — hari libur nasional (SKB) & cuti pribadi yang ditandai pengguna
 /* ---------------- Jadwal kerja efektif Kemenag + target jam ---------------- */
 /* Periode Ramadan kini tersimpan di SETTINGS.periodeRamadan dan bisa diubah
@@ -998,7 +1008,7 @@ function loadStore(){
   try{ const raw=localStorage.getItem(STORE_KEY); if(raw) s=JSON.parse(raw); }catch(err){}
   if(!s || s.v!==1) return;
   if (s.profile) PROFILE = s.profile;
-  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 }, s.settings);
+  if (s.settings) SETTINGS = Object.assign({ gasUrl:WORKER_URL, driveFolderId:"", modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 }, s.settings);
   /* Migrasi backend sekali jalan (2026-11-26): penyimpanan lama yang masih
      menunjuk URL GAS (atau kosong) dialihkan ke Worker bawaan, dan token
      sesi PIN lama dibuang karena tidak berlaku di Worker — pengguna masuk
@@ -1029,7 +1039,7 @@ function resetToSample(){
   try{ localStorage.removeItem(STORE_KEY); }catch(err){}
   dataMode = "sample";
   PROFILE = { nama:"Ardian", nip:"", pangkat:"", jabatan:"", unit:"", atasan:"" };
-  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
+  SETTINGS = { gasUrl:WORKER_URL, driveFolderId:"", geminiKey:"", telegramOn:false, botToken:"", chatId:"", remindH3:true, remindH1:true, modelUtama:"gemini-3.5-flash-lite", lastAiDiag:null, gasToken:"", gasSesiSampai:"", lastSync:null, sesiBerakhir:false, backendWorkerMigrasi:true, syncNudgeDone:false, hariWfh:["Jumat"], periodeRamadan:null, liburResmiDimuat:false, tampilLewat:false, jadwalDiubahPada:0 };
   LIBUR = [];
   SKOR_PATTERN = JSON.parse(JSON.stringify(SAMPLE_SKOR_PATTERN));
   seedSample();
@@ -1061,6 +1071,7 @@ function show(view){
   const tabMap = {today:"today", cal:"cal", rekap:"rekap", arsip:"arsip"};
   $$("#tabbar button").forEach(b=>b.classList.toggle("on", tabMap[view]===b.dataset.tab));
   if (tabMap[view]) { currentTab = tabMap[view]; lastTab = currentTab; }
+  if (view==="today") checkSessionExpiry(); // pindah ke tab Hari ini = salah satu pemicu cek sesi berakhir
   const fw = document.getElementById("fabWrap");
   if (fw){ fw.style.display = view==="today" ? "" : "none"; if (view!=="today" && typeof setFab==="function") setFab(false); }
   window.scrollTo(0,0);
@@ -2562,7 +2573,12 @@ $("#wizNext").addEventListener("click", ()=>{
   toast("Pengaturan tersimpan di perangkat ini. Selamat bekerja, "+(PROFILE.nama||"")+"!");
 });
 $("#gearBtn").addEventListener("click", ()=>{ show("set"); renderSettings(); });
-$("#syncChip").addEventListener("click", openSyncSettings);
+$("#syncChip").addEventListener("click", ()=>{
+  /* Sesi berakhir → ke kartu Koneksi (tempat masuk). Koneksi terputus →
+     coba sinkron lagi langsung. Keadaan lain → kartu Koneksi seperti biasa. */
+  if (connAlertState()==="net" && gasSessionValid()){ syncNow({ silent:false }); return; }
+  openSyncSettings();
+});
 $("#bannerWizard").addEventListener("click", ()=>openWizard(0));
 $("#bellBtn").addEventListener("click", ()=>{ const q=quarterInfo(); toast("Pengingat: tenggat triwulan "+q.num+" tinggal "+q.days+" hari · H-3 & H-1 aktif"); });
 $("#scoreBox").addEventListener("click", ()=>{ show("skor"); renderSkor(); });
@@ -2710,7 +2726,67 @@ function gasSessionValid(){
   if (SETTINGS.gasSesiSampai && Date.now() > Date.parse(SETTINGS.gasSesiSampai)) return false;
   return true;
 }
-function gasClearSession(){ SETTINGS.gasToken=""; SETTINGS.gasSesiSampai=""; GAS_FOLDERS=null; gasPinFormOpen=false; gasLoginMsg=""; saveStore(); }
+/* ---------------- Keadaan koneksi: sesi berakhir vs koneksi terputus ----------------
+   Dua keadaan yang TIDAK boleh terlewat (permintaan Ardian 2026-11-28):
+   sesi login server hanya berlaku 6 jam, tetapi kebiasaan menganggap
+   koneksi email cukup sekali di awal membuat berakhirnya sesi luput —
+   pengguna terus mencatat mengira tersinkron, padahal hanya lokal.
+   - "sesi": penanda menetap SETTINGS.sesiBerakhir (tersimpan) — diset saat
+     waktu berakhir sesi terlewat (cek saat boot / aplikasi kembali terlihat
+     / pindah ke tab Hari ini / tiap 60 detik) atau saat backend membalas
+     kode SESI. Token sesi dibersihkan; entri, RHK & data lokal TIDAK
+     disentuh. Dibersihkan hanya oleh login ulang yang berhasil.
+   - "net": panggilan backend gagal karena jaringan (fetch gagal / timeout)
+     — keadaan berbeda dari sesi berakhir. connNetDown hidup di memori sesi
+     buka ini; kegagalan sinkron terakhir juga terbaca dari lastSync.kode.
+   connBannerDismissed = tombol “Nanti” pada spanduk: menyembunyikan hanya
+   sampai aplikasi dibuka lagi (visibilitychange → visible) atau sampai
+   kegagalan berikutnya terjadi — bukan selamanya. */
+let connNetDown = false;
+let connBannerDismissed = false;
+function connAlertState(){
+  if (SETTINGS.sesiBerakhir) return "sesi";
+  const ls = SETTINGS.lastSync;
+  if (connNetDown || (ls && ls.error && (ls.kode==="NET" || ls.kode==="TIMEOUT"))) return "net";
+  return "";
+}
+function refreshConnUI(){
+  renderSyncChip(); renderConnBanner();
+  if ($("#view-set") && $("#view-set").classList.contains("active")) renderGasCard();
+}
+function markSessionExpired(){
+  const berubah = !SETTINGS.sesiBerakhir;
+  SETTINGS.sesiBerakhir = true;
+  SETTINGS.gasToken = ""; SETTINGS.gasSesiSampai = ""; GAS_FOLDERS = null;
+  saveStore();
+  if (berubah) connBannerDismissed = false; // kegagalan baru → spanduk tampil lagi walau tadi di-“Nanti”
+  refreshConnUI();
+}
+function checkSessionExpiry(){
+  if (SETTINGS.gasToken && SETTINGS.gasSesiSampai && Date.now() > Date.parse(SETTINGS.gasSesiSampai)){
+    markSessionExpired();
+    return true;
+  }
+  return false;
+}
+function noteConnNetFail(){
+  const berubah = !connNetDown;
+  connNetDown = true;
+  if (berubah) connBannerDismissed = false;
+  refreshConnUI();
+}
+function noteConnOk(){
+  if (!connNetDown) return;
+  connNetDown = false;
+  refreshConnUI();
+}
+function gasClearSession(expired){
+  SETTINGS.gasToken=""; SETTINGS.gasSesiSampai=""; GAS_FOLDERS=null; gasPinFormOpen=false; gasLoginMsg="";
+  if (expired){ SETTINGS.sesiBerakhir = true; connBannerDismissed = false; }
+  else SETTINGS.sesiBerakhir = false;
+  saveStore();
+  if (expired) refreshConnUI();
+}
 /* Tes koneksi GAS dengan diagnosis jujur (perbaikan 2026-11-24): kegagalan
    TIDAK lagi ditelan jadi satu pesan generik. Setiap hasil membawa pesan
    sesuai penyebab aslinya — URL yang dites, status HTTP, lama jawaban,
@@ -2824,21 +2900,25 @@ async function gasCall(payload, timeoutMs){
   }catch(err){
     clearTimeout(to);
     const e = new Error(err && err.name==="AbortError" ? "GAS tidak menjawab dalam batas waktu — coba lagi." : "GAS tidak terjangkau dari perangkat ini — periksa jaringan dan URL /exec-nya.");
-    e.kode = err && err.name==="AbortError" ? "TIMEOUT" : "NET"; throw e;
+    e.kode = err && err.name==="AbortError" ? "TIMEOUT" : "NET";
+    noteConnNetFail(); // fetch gagal / tanpa respons = koneksi terputus (bukan sesi berakhir)
+    throw e;
   }
   clearTimeout(to);
   let data = null; try{ data = await res.json(); }catch(_){}
   if (!data || data.ok!==true){
     const e = new Error((data && data.error) || ("GAS menjawab HTTP "+res.status+" tanpa isi yang dikenal"));
     e.kode = (data && data.kode) || "GAS";
-    if (e.kode==="SESI") gasClearSession();
+    if (e.kode==="SESI") gasClearSession(true); // sesi ditandai berakhir + token dibersihkan; data lokal utuh
     throw e;
   }
+  noteConnOk(); // backend menjawab → koneksi tidak lagi dianggap terputus
   return data;
 }
 async function gasLogin(pin){
   const r = await gasCall({ action:"login", pin:String(pin||"") });
   SETTINGS.gasToken = r.token || ""; SETTINGS.gasSesiSampai = r.berlakuSampai || "";
+  SETTINGS.sesiBerakhir = false; connNetDown = false; connBannerDismissed = false;
   saveStore();
   return r;
 }
@@ -2849,6 +2929,7 @@ async function gasLogin(pin){
 async function gasLoginGoogle(idToken){
   const r = await gasCall({ action:"loginGoogle", idToken:String(idToken||"") });
   SETTINGS.gasToken = r.token || ""; SETTINGS.gasSesiSampai = r.berlakuSampai || "";
+  SETTINGS.sesiBerakhir = false; connNetDown = false; connBannerDismissed = false;
   saveStore();
   return r;
 }
@@ -3307,11 +3388,12 @@ async function retryUploads(onlyEntryId){
 async function syncNow(opts){
   opts = opts || {};
   if (gasSyncBusy){ gasSyncQueued = true; return null; }
+  checkSessionExpiry(); // sesi yang lewat masa berlakunya terdeteksi di sini juga, bukan menunggu pemicu lain
   if (!gasUrlVal()){ if (!opts.silent) toast("URL backend belum diisi — lewat wizard langkah Koneksi"); return null; }
   if (!gasSessionValid()){ if (!opts.silent) toast(backendKind(gasUrlVal())==="worker" ? "Masuk dengan Google dulu dari Pengaturan › Koneksi Worker" : "Login PIN GAS dulu dari Pengaturan › Koneksi GAS"); renderGasCard(); return null; }
   if (dataMode==="sample"){ if (!opts.silent) toast("Mode data contoh — sinkron GAS nonaktif agar contoh tidak terkirim ke Sheets"); return null; }
   gasSyncBusy = true; renderGasCard();
-  const rep = { waktu:new Date().toLocaleString("id-ID"), ts:Date.now(), pushed:0, skipped:0, failed:0, uploaded:0, upFailed:0, pulled:0, error:"" };
+  const rep = { waktu:new Date().toLocaleString("id-ID"), ts:Date.now(), pushed:0, skipped:0, failed:0, uploaded:0, upFailed:0, pulled:0, error:"", kode:"" };
   try{
     const valid = ENTRIES.filter(e=>jamValid(e.start, e.end).ok);
     rep.skipped = ENTRIES.length - valid.length;
@@ -3356,6 +3438,7 @@ async function syncNow(opts){
     else if (!opts.silent) toast("Sinkron GAS selesai — "+rep.pushed+" entri terkirim, "+rep.uploaded+" eviden terunggah");
   }catch(err){
     rep.error = (err && err.message) || String(err);
+    rep.kode = (err && err.kode) || ""; // SESI / NET / TIMEOUT ikut tersimpan — chip & spanduk membaca keadaan dari sini
     SETTINGS.lastSync = rep; saveStore();
     if (!opts.silent) toast("Sinkron GAS gagal: "+rep.error);
   }
@@ -3389,16 +3472,61 @@ function renderSyncChip(){
   const c = $("#syncChip"); if (!c) return;
   const ls = SETTINGS.lastSync;
   const pend = pendingUploadFiles();
+  const st = connAlertState();
   let cls = "", txt = "Belum tersinkron";
+  /* Keadaan koneksi yang berakhir/terputus mengalahkan status lain: merah
+     “Sesi berakhir — masuk lagi” dan kuning “Sinkron gagal — koneksi
+     terputus” harus terlihat jelas, bukan perubahan kecil pada chip. */
+  if (st==="sesi"){ cls = "err"; txt = "Sesi berakhir — masuk lagi"; }
+  else if (st==="net"){ cls = "warn"; txt = "Sinkron gagal — koneksi terputus"; }
   /* Eviden gagal terunggah mengalahkan status hijau: chip merah sampai
      unggah ulangnya berhasil — sinkron entri yang sukses tidak menyembunyikannya. */
-  if (pend.failed.length){ cls = "err"; txt = pend.failed.length+" eviden gagal terunggah — ketuk untuk unggah ulang"; }
+  else if (pend.failed.length){ cls = "err"; txt = pend.failed.length+" eviden gagal terunggah — ketuk untuk unggah ulang"; }
   else if (pend.catat.length){ cls = "err"; txt = pend.catat.length+" eviden sudah di Drive, belum tercatat — ketuk untuk selesaikan"; }
   else if (ls && ls.error){ cls = "err"; txt = "Sinkron terakhir gagal"; }
   else if (ls){ cls = "ok"; txt = "Tersinkron "+(ls.ts ? relTimeStr(ls.ts) : (ls.waktu ? "· "+ls.waktu : "")); }
-  if (!pend.failed.length && !pend.catat.length && pend.pending.length && ls && !ls.error){ cls = ""; txt = pend.pending.length+" eviden menunggu unggah"; }
+  if (!st && !pend.failed.length && !pend.catat.length && pend.pending.length && ls && !ls.error){ cls = ""; txt = pend.pending.length+" eviden menunggu unggah"; }
   c.className = "syncchip "+cls;
   c.innerHTML = '<span class="dot"></span><span>'+esc(txt)+'</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
+  renderConnBanner();
+}
+/* ---------------- Spanduk peringatan koneksi (menetap di Hari ini) ----------------
+   Spanduk di bawah sapaan, di dekat chip sinkron — BUKAN toast: tampil
+   selama keadaannya berlaku. “Nanti” menyembunyikan hanya sampai aplikasi
+   dibuka lagi atau kegagalan berikutnya; login ulang + sinkron berhasil
+   menghilangkannya. Tidak tampil bersamaan dengan pengingat sekali
+   (syncNudge) — dua ajakan masuk tidak ditumpuk. Jujur pada batasnya:
+   pemberitahuan ini hanya bisa muncul saat aplikasi dibuka atau sedang
+   dibuka; tidak ada notifikasi push saat aplikasi tertutup. */
+let connBannerSig = "__init__";
+function renderConnBanner(){
+  const b = $("#connBanner"); if (!b) return;
+  const st = connAlertState();
+  const tampil = !!st && !connBannerDismissed && !syncNudgeVisible;
+  const sig = tampil ? st+"|"+backendKind(gasUrlVal()) : "";
+  if (sig===connBannerSig) return; // jangan bangun ulang DOM (tombol Google di dalamnya ikut ter-reset)
+  connBannerSig = sig;
+  if (!tampil){ b.className = "connbanner"; b.innerHTML = ""; return; }
+  const kind = backendKind(gasUrlVal());
+  if (st==="sesi"){
+    b.className = "connbanner show sesi";
+    b.innerHTML = '<p>'+(kind==="gas"
+      ? "Sesi masuk berakhir (berlaku 6 jam). Data baru hanya tersimpan di perangkat ini — masuk lagi supaya tersinkron."
+      : "Sesi Google berakhir (berlaku 6 jam). Data baru hanya tersimpan di perangkat ini — masuk lagi supaya tersinkron.")+'</p>'
+      + '<div class="row">'
+      + (kind==="worker"
+        ? '<div id="gisBtnBanner" style="min-height:44px"></div>'
+        : '<button class="btn primary" id="connLoginBtn">'+(kind==="gas" ? "Masuk dengan PIN" : "Masuk dengan Google")+'</button>')
+      + '<button class="btn plain" id="connLaterBtn">Nanti</button></div>';
+    if (kind==="worker") mountGisButton(0, "gisBtnBanner", 240);
+  } else {
+    b.className = "connbanner show net";
+    b.innerHTML = '<p>Tidak bisa terhubung ke server — periksa internet, lalu coba lagi.</p>'
+      + '<div class="row"><button class="btn primary" id="connRetryBtn">Coba lagi</button><button class="btn plain" id="connLaterBtn">Nanti</button></div>';
+  }
+  const lb = $("#connLoginBtn"); if (lb) lb.addEventListener("click", openSyncSettings);
+  const rb = $("#connRetryBtn"); if (rb) rb.addEventListener("click", ()=>{ if (gasSessionValid()) syncNow({ silent:false }); else openSyncSettings(); });
+  const nb = $("#connLaterBtn"); if (nb) nb.addEventListener("click", ()=>{ connBannerDismissed = true; renderConnBanner(); });
 }
 function openSyncSettings(){
   show("set"); renderSettings();
@@ -3416,11 +3544,12 @@ function renderSyncNudge(){
 }
 function dismissSyncNudge(){
   SETTINGS.syncNudgeDone = true; saveStore();
-  syncNudgeVisible = false; renderSyncNudge();
+  syncNudgeVisible = false; renderSyncNudge(); renderConnBanner();
 }
 function maybeShowSyncNudge(){
   if (SETTINGS.syncNudgeDone || gasSessionValid() || SETTINGS.lastSync || dataMode==="sample") return;
-  syncNudgeVisible = true; renderSyncNudge();
+  if (connAlertState()) return; // jangan menumpuk dua ajakan masuk: spanduk koneksi sedang tampil
+  syncNudgeVisible = true; renderSyncNudge(); renderConnBanner();
 }
 function hideSyncNudgeIfSynced(){
   if (syncNudgeVisible && gasSessionValid()){ syncNudgeVisible = false; renderSyncNudge(); }
@@ -3438,6 +3567,12 @@ function renderGasCard(){
   }
   h += '<p class="small muted" style="margin:0">URL backend ('+namaBackend+'): <span style="word-break:break-all">'+esc(url)+'</span></p>'
     + '<p class="small muted" style="margin:4px 0 0">URL bisa diganti dari wizard langkah Koneksi — tampilan masuk di kartu ini menyesuaikan jenisnya: Worker memakai Masuk dengan Google, GAS memakai PIN.</p>';
+  /* Baris status yang sama dengan chip di Hari ini: sesi berakhir /
+     koneksi terputus tampil jelas di sini juga, bukan hanya di chip. */
+  const stCard = connAlertState();
+  if (stCard==="sesi") h += '<p style="margin:10px 0 0"><span class="chip red">Sesi berakhir — masuk lagi</span> <span class="small muted">Data baru hanya tersimpan di perangkat ini sampai Anda masuk lagi di bawah.</span></p>';
+  else if (stCard==="net") h += '<p style="margin:10px 0 0"><span class="chip amber">Sinkron gagal — koneksi terputus</span> <span class="small muted">Periksa internet, lalu coba sinkron lagi.</span></p>';
+  else if (SETTINGS.lastSync && !SETTINGS.lastSync.error) h += '<p style="margin:10px 0 0"><span class="chip green">Tersinkron</span> <span class="small muted">Sinkron terakhir berhasil '+esc(SETTINGS.lastSync.waktu)+'.</span></p>';
   if (!GAS_PING){
     h += '<p class="small muted" style="margin:10px 0 0">Status koneksi belum dites pada sesi buka ini — tekan “Tes koneksi '+namaBackend+'”.</p>';
   } else if (GAS_PING.ok){
@@ -3470,7 +3605,7 @@ function renderGasCard(){
           + '<p class="small muted" style="margin:8px 0 0">PIN diganti di server GAS (disimpan sebagai hash SHA-256 + salt, sama seperti saat dipasang). Setelah diganti, PIN lama tidak berlaku lagi untuk login berikutnya; sesi yang sedang aktif ini tetap berjalan sampai berakhir.</p>'
         : '');
   } else {
-    const sesiBerakhir = !!SETTINGS.gasToken; // token ada tapi masa berlakunya lewat
+    const sesiBerakhir = !!SETTINGS.sesiBerakhir || !!SETTINGS.gasToken; // penanda berakhir tersimpan, atau token ada tapi masa berlakunya lewat
     if (kind==="worker"){
       h += '<div class="gaspanel">'
         + '<p style="margin:0"><span class="chip amber">'+(sesiBerakhir ? "Sesi berakhir" : "Belum masuk")+'</span> <span class="small muted">'+(sesiBerakhir ? "Sesi Worker sudah lewat 6 jam — masuk lagi untuk melanjutkan." : "Sesi Worker belum aktif di perangkat ini.")+'</span></p>'
@@ -3569,6 +3704,7 @@ function renderGasCard(){
 /* ---------------- Init ---------------- */
 function renderAll(){ renderToday(); renderCountdown(); renderCal(); renderRekap(); renderArsip(); }
 renderSheetFiles();
+checkSessionExpiry(); // pemicu boot: sesi tersimpan yang sudah lewat masa berlakunya langsung ketahuan
 renderAll();
 if (dataMode!=="sample") $("#sampleBanner").style.display="none";
 updateStorageStatus();
@@ -3579,6 +3715,20 @@ if (gasUrlVal()){
   gasPing().then(()=>{ if ($("#view-set").classList.contains("active")) renderGasCard(); });
   if (gasSessionValid()) gasRefreshFolders();
 }
+/* Pemicu cek ulang sesi berakhir selama aplikasi hidup:
+   - aplikasi kembali terlihat (visibilitychange → visible): “Nanti” pada
+     spanduk berhenti menyembunyikan — aplikasi dianggap dibuka lagi — lalu
+     sesi dicek ulang saat itu juga.
+   - tiap 60 detik: sesi yang melewati masa berlakunya SELAGI aplikasi
+     sedang dibuka langsung memunculkan pemberitahuan, tanpa menunggu
+     upaya sinkron berikutnya. */
+document.addEventListener("visibilitychange", ()=>{
+  if (document.visibilityState!=="visible") return;
+  connBannerDismissed = false;
+  checkSessionExpiry();
+  refreshConnUI();
+});
+setInterval(()=>{ checkSessionExpiry(); renderSyncChip(); }, 60000);
 </script>
   </body>
 </html>
