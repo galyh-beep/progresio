@@ -84,7 +84,7 @@ const SHEET_SET_ = 'Pengaturan_Sistem';
 
 const HEADER_PROFIL_ = ['Nama', 'NIP', 'Pangkat_Golongan', 'Jabatan',
   'Unit_Kerja', 'Nama_Atasan', 'NIP_Atasan', 'Jabatan_Atasan', 'Email',
-  'Zona_Waktu', 'Diperbarui'];
+  'Zona_Waktu', 'Diperbarui', 'Label_NIP', 'Unit_Organisasi'];
 const HEADER_RHK_ = ['ID_RHK', 'Nama_RHK', 'Rencana_Aksi', 'Kata_Kunci',
   'Target_Kuantitas', 'Target_Waktu', 'Satuan', 'Aturan_Hitung',
   'Durasi_Standar_Menit', 'Akses_Eviden', 'Aktif', 'Diperbarui'];
@@ -845,7 +845,8 @@ function bacaProfilDari_(rows) {
     pangkat: String(r.Pangkat_Golongan || ''), jabatan: String(r.Jabatan || ''),
     unit: String(r.Unit_Kerja || ''), atasan: String(r.Nama_Atasan || ''),
     nipAtasan: String(r.NIP_Atasan || ''), jabatanAtasan: String(r.Jabatan_Atasan || ''),
-    email: String(r.Email || ''), zonaWaktu: String(r.Zona_Waktu || ZONA_WAKTU) };
+    email: String(r.Email || ''), zonaWaktu: String(r.Zona_Waktu || ZONA_WAKTU),
+    labelNip: String(r.Label_NIP || ''), unitOrganisasi: String(r.Unit_Organisasi || '') };
 }
 async function bacaProfil_(env) {
   const t = await muatTabel_(env, SHEET_PROFIL_, HEADER_PROFIL_);
@@ -856,8 +857,12 @@ async function tulisProfil_(env, p) {
   const nilai = [bersihTeks_(p.nama, 100), bersihTeks_(p.nip, 30), bersihTeks_(p.pangkat, 60),
     bersihTeks_(p.jabatan, 120), bersihTeks_(p.unit, 120), bersihTeks_(p.atasan, 100),
     bersihTeks_(p.nipAtasan, 30), bersihTeks_(p.jabatanAtasan, 120),
-    bersihTeks_(p.email, 120), bersihTeks_(p.zonaWaktu, 40) || ZONA_WAKTU, stempel_()];
+    bersihTeks_(p.email, 120), bersihTeks_(p.zonaWaktu, 40) || ZONA_WAKTU, stempel_(),
+    bersihTeks_(p.labelNip, 10), bersihTeks_(p.unitOrganisasi, 120)];
   const t = await muatTabel_(env, SHEET_PROFIL_, HEADER_PROFIL_);
+  if (JSON.stringify(t.header) !== JSON.stringify(HEADER_PROFIL_)) {
+    await sheetsValuesUpdate_(env, `${SHEET_PROFIL_}!A1:${kolomHuruf_(HEADER_PROFIL_.length)}1`, [HEADER_PROFIL_]);
+  }
   if (t.lastRow < 2) await sheetsValuesAppend_(env, `${SHEET_PROFIL_}!A1`, [nilai]);
   else await sheetsValuesUpdate_(env, `${SHEET_PROFIL_}!A2:${kolomHuruf_(nilai.length)}2`, [nilai]);
   return bacaProfil_(env);
@@ -1829,7 +1834,7 @@ async function setupDatabase_(env, body) {
   const tProfil = await muatTabel_(e, SHEET_PROFIL_, HEADER_PROFIL_);
   if (tProfil.lastRow < 2) {
     await sheetsValuesAppend_(e, `${SHEET_PROFIL_}!A1`,
-      [['Ardian', '', '', '', '', '', '', '', String(env.OWNER_EMAIL || ''), ZONA_WAKTU, stempel_()]]);
+      [['Ardian', '', '', '', '', '', '', '', String(env.OWNER_EMAIL || ''), ZONA_WAKTU, stempel_(), '', '']]);
   }
   // Pengaturan non-rahasia (rahasia TIDAK di sini — di Worker secrets).
   const setAwal = [
