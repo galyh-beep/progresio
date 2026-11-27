@@ -1,0 +1,66 @@
+# ============================================================================
+# PROGRESIO — Cloudflare Workers (migrasi dari GAS Batch 2)
+# ============================================================================
+# CARA PAKAI: isi [vars] di bawah, lalu jalankan perintah di SETUP.md.
+# JANGAN menulis rahasia apa pun di file ini. Semua rahasia diisi lewat:
+#   npx wrangler secret put <NAMA>
+# (nilainya terenkripsi di Cloudflare dan tidak bisa dibaca kembali.)
+# ============================================================================
+
+name = "progresio-api"
+main = "worker.js"
+compatibility_date = "2026-11-26"
+workers_dev = true
+
+# [vars] = nilai NON-RAHASIA (boleh terlihat di file ini & dashboard).
+[vars]
+# Email Gmail Ardian (pemilik tunggal Progresio — HARUS diisi).
+OWNER_EMAIL = "warnapola.djb@gmail.com"
+# Client ID OAuth "Web application" untuk Sign in with Google (lihat SETUP.md
+# langkah 5). Ini pengenal publik, BUKAN rahasia — tapi tetap isi yang benar.
+GOOGLE_CLIENT_ID = "657359876587-87j0vofccvcl8qqu5526lj4tbtthmc17.apps.googleusercontent.com"
+# ID spreadsheet Progresio_DB (sudah ada — dari URL spreadsheet Ardian).
+SPREADSHEET_ID = "1HqEKNTpvf5Ks3BpIvYu_59IvU2C59Eo87h_RrkOTAok"
+# ID folder root Drive Progresio_System (sudah ada — dari URL folder Ardian).
+DRIVE_ROOT_FOLDER_ID = "1Hz1oaDZZ5reX8WfxnMjjlFpKKTtE-6Ub"
+# Model Gemini utama (failover: 3.5-flash-lite -> 3.1-flash-lite -> 3.8-flash).
+MODEL_UTAMA = "gemini-3.5-flash-lite"
+# Origin PWA yang diizinkan memanggil Worker ini (CORS), dipisah koma, TANPA
+# garis miring di akhir. Isi dengan origin persis tempat PWA dibuka —
+# contoh: "https://galyh-beep.github.io,https://muse.ai"
+# (salin dari address bar browser saat PWA terbuka, hanya skema + host).
+ALLOWED_ORIGINS = "https://muse.ai,https://galyh-beep.github.io"
+# Chat ID Telegram pemilik — KOSONGKAN dulu (Batch 3).
+TELEGRAM_CHAT_ID = ""
+# (Opsional, penguat) sub Google Ardian — didapat dari respons loginGoogle
+# pertama ("sub"). Bila diisi, login juga memeriksa sub, bukan hanya email.
+# OWNER_SUB = ""
+
+# --- Secrets (JANGAN diisi di sini — pakai `wrangler secret put`) ---
+# GEMINI_API_KEY       : kunci Gemini dari AI Studio (sama seperti di GAS).
+# SA_CLIENT_EMAIL      : email service account (....iam.gserviceaccount.com).
+# SA_PRIVATE_KEY       : kunci privat service account (PEM, multi-baris).
+# SESSION_SECRET       : rahasia penanda token sesi (acak, min 32 karakter).
+# TELEGRAM_BOT_TOKEN   : Batch 3 — kosongkan dulu.
+# TELEGRAM_WEBHOOK_SECRET : Batch 3 — kosongkan dulu.
+
+# --- KV (opsional tahap awal; WAJIB untuk Batch 3 Telegram) ---
+# Draf AI disimpan di KV (TTL 6 jam). Tanpa KV, prosesAi tetap jalan, tapi
+# konfirmasiDraf harus mengirim kembali items draf di body (drafItems).
+# Cara mengaktifkan:
+#   1) npx wrangler kv namespace create PROGRESIO_KV
+#   2) salin "id" yang muncul, hapus tanda # pada 3 baris di bawah, isi id-nya.
+# [[kv_namespaces]]
+# binding = "PROGRESIO_KV"
+# id = "ISI_ID_KV"
+
+# --- Rate limiting bawaan (opsional; ketersediaan di paket Free BELUM
+# terkonfirmasi di riset 2026-11-26 — jangan andalkan sebelum dicek di
+# dashboard Cloudflare). Penahan aktif saat ini adalah rate limit darurat
+# di worker.js (120 req/menit per IP, per isolate, best-effort).
+# [[ratelimits]]
+# binding = "RATE_LIMITER"
+# namespace_id = "1001"
+#   [ratelimits.simple]
+#   limit = 120
+#   period = 60
