@@ -873,7 +873,7 @@ function jumlahLabel(e){ const r = e.rhk ? RHKS.find(x=>x.id===e.rhk) : null; co
 /* ---------------- Penyimpanan lokal (localStorage) ---------------- */
 const STORE_KEY = "progresio.store.v1";
 let dataMode = "sample";
-function cleanFiles(files){ return (files||[]).map(f=>{ const o={name:f.name, size:f.size, type:f.type, sample:!!f.sample}; if (f.thumb) o.thumb=f.thumb; if (f.uploaded) o.uploaded=true; if (f.driveFileId) o.driveFileId=f.driveFileId; if (f.upState) o.upState=f.upState; if (f.upError) o.upError=f.upError; if (f.upTries) o.upTries=f.upTries; return o; }); }
+function cleanFiles(files){ return (files||[]).map(f=>{ const o={name:f.name, size:f.size, type:f.type, sample:!!f.sample}; if (f.thumb) o.thumb=f.thumb; if (f.uploaded) o.uploaded=true; if (f.driveFileId) o.driveFileId=f.driveFileId; if (f.driveNama) o.driveNama=f.driveNama; if (f.driveMime) o.driveMime=f.driveMime; if (f.driveUkuran) o.driveUkuran=f.driveUkuran; if (f.upState) o.upState=f.upState; if (f.upError) o.upError=f.upError; if (f.upTries) o.upTries=f.upTries; return o; }); }
 function updateStorageStatus(){
   const el = $("#storageStatus"); if(!el) return;
   el.textContent = (dataMode==="sample" ? "Mode data contoh" : "Data Anda tersimpan") + " · " + ENTRIES.length + " entri · " + RHKS.length + " RHK · tersimpan otomatis setiap ada perubahan.";
@@ -908,7 +908,7 @@ function loadStore(){
   }
   if (Array.isArray(s.libur)) LIBUR = s.libur;
   if (Array.isArray(s.rhks) && s.rhks.length) RHKS = s.rhks.map(r=>{ const base = SAMPLE_RHKS.find(x=>x.id===r.id) || {}; return Object.assign({ satuan:base.satuan||"", aturan:base.aturan||"", durasiStd:base.durasiStd||60, akses:base.akses||"link" }, r); });
-  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
+  if (Array.isArray(s.entries)) ENTRIES = s.entries.map(e=>Object.assign({ jumlah:1, satuan:"", durasiMenit:0, estimasi:false, akses:"" }, e, { files:(e.files||[]).map(f=>({name:f.name, size:f.size, type:f.type, sample:!!f.sample, thumb:f.thumb||"", needsReattach:!f.sample, uploaded:!!f.uploaded, driveFileId:f.driveFileId||"", driveNama:f.driveNama||"", driveMime:f.driveMime||"", driveUkuran:f.driveUkuran||0, upState:f.upState||"", upError:f.upError||"", upTries:f.upTries||0})) }));
   if (typeof s.entrySeq==="number" && s.entrySeq>entrySeq) entrySeq = s.entrySeq;
   if (s.skorPattern) SKOR_PATTERN = s.skorPattern;
   dataMode = s.dataMode==="custom" ? "custom" : "sample";
@@ -1490,7 +1490,7 @@ $("#imgLightbox").addEventListener("click", ev=>{ if (ev.target.id==="imgLightbo
 function fileChipHTML(f, idx){
   const kb = f.size ? Math.max(1,Math.round(f.size/1024)) : 0;
   const rm = (typeof idx==="number") ? '<button class="rm" data-rmf="'+idx+'" aria-label="Hapus file '+esc(f.name)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>' : "";
-  return '<span class="fchip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'+esc(f.name)+(kb?' <span class="muted">· '+kb+' KB</span>':"")+(f.upState==="failed"?' <span style="color:var(--red);font-weight:700">· gagal terunggah</span>':(f.upState==="pending"&&f.file?' <span style="color:var(--amber);font-weight:700">· menunggu unggah</span>':(f.needsReattach?' <span style="color:var(--amber);font-weight:700">· lampirkan ulang</span>':"")))+rm+'</span>';
+  return '<span class="fchip"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>'+esc(f.name)+(kb?' <span class="muted">· '+kb+' KB</span>':"")+(!f.uploaded&&f.driveFileId?' <span style="color:var(--amber);font-weight:700">· di Drive · belum tercatat</span>':(f.upState==="failed"?' <span style="color:var(--red);font-weight:700">· gagal terunggah</span>':(f.upState==="pending"&&f.file?' <span style="color:var(--amber);font-weight:700">· menunggu unggah</span>':(f.needsReattach?' <span style="color:var(--amber);font-weight:700">· lampirkan ulang</span>':""))))+rm+'</span>';
 }
 
 /* ---------------- Eviden pada entri yang sudah tersimpan ---------------- */
@@ -1504,7 +1504,7 @@ function renderEntriFiles(e){
       + (x.f.thumb
         ? '<img src="'+x.f.thumb+'" alt="Thumbnail '+esc(x.f.name)+'"/>'
         : '<svg class="ph" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="9" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>')
-      + (x.f.upState==="failed" ? '<span class="re fail">GAGAL UNGGAH</span>' : (x.f.needsReattach ? '<span class="re">LAMPIR ULANG</span>' : ''))
+      + (!x.f.uploaded && x.f.driveFileId ? '<span class="re">BELUM TERCATAT</span>' : (x.f.upState==="failed" ? '<span class="re fail">GAGAL UNGGAH</span>' : (x.f.needsReattach ? '<span class="re">LAMPIR ULANG</span>' : '')))
       + '</span><button class="rm" data-rmf="'+x.i+'" aria-label="Hapus file '+esc(x.f.name)+'"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button></span>').join("")
     + '<button class="addtile" id="entriAddTile" aria-label="Tambah eviden — foto atau file">+</button>'
     + '<span class="tsummary">'+(e.files.length ? e.files.length+' file bukti'+(tiles.length ? ' · ketuk foto untuk memperbesar' : '') : 'Tambah eviden — foto atau file')+'</span></div>';
@@ -1532,11 +1532,13 @@ function renderEntriFiles(e){
   if (upBox){
     const gagal = e.files.filter(f=>f.upState==="failed");
     const tunggu = e.files.filter(f=>f.upState==="pending" && f.file);
-    if (!gagal.length && !tunggu.length){ upBox.innerHTML = ""; }
+    const belumCatat = e.files.filter(f=>!f.uploaded && f.driveFileId && f.upState!=="failed");
+    if (!gagal.length && !tunggu.length && !belumCatat.length){ upBox.innerHTML = ""; }
     else{
-      const bisaUlang = gagal.concat(tunggu).some(f=>f.file) && !!e.logId;
-      let uh = '<div class="upfailbox" style="margin-top:12px"><b>'+(gagal.length ? gagal.length+' eviden gagal terunggah ke Drive' : tunggu.length+' eviden belum terunggah ke Drive')+'</b>';
-      if (gagal.length) uh += '<ul>'+gagal.map(f=>'<li>'+esc(f.name)+(f.upError ? ' — '+esc(f.upError) : '')+(f.file ? '' : ' · berkas aslinya sudah tidak ada di sesi ini: lampirkan ulang lewat tombol + di atas, lalu unggah lagi')+'</li>').join("")+'</ul>';
+      const bisaUlang = gagal.concat(tunggu, belumCatat).some(f=>f.file || f.driveFileId) && !!e.logId;
+      let uh = '<div class="upfailbox" style="margin-top:12px"><b>'+(gagal.length ? gagal.length+' eviden gagal terunggah ke Drive' : (belumCatat.length ? belumCatat.length+' eviden sudah di Drive, belum tercatat di server' : tunggu.length+' eviden belum terunggah ke Drive'))+'</b>';
+      if (gagal.length) uh += '<ul>'+gagal.map(f=>'<li>'+esc(f.name)+(f.upError ? ' — '+esc(f.upError) : '')+(f.driveFileId ? ' · Berkasnya sudah ada di Drive — tinggal dicatat server lewat tombol di bawah; tidak perlu dilampirkan ulang.' : (f.file ? '' : ' · berkas aslinya sudah tidak ada di sesi ini: lampirkan ulang lewat tombol + di atas, lalu unggah lagi'))+'</li>').join("")+'</ul>';
+      if (belumCatat.length) uh += '<p class="small" style="margin:6px 0 0">'+belumCatat.map(f=>esc(f.driveNama || f.name)).join(", ")+' sudah terunggah ke Drive — tinggal dicatat server.</p>';
       if (tunggu.length) uh += '<p class="small" style="margin:6px 0 0">'+tunggu.map(f=>esc(f.name)).join(", ")+' menunggu diunggah.</p>';
       if (!e.logId) uh += '<p class="small" style="margin:6px 0 0">Entri ini belum terkirim ke server — evidennya ikut terunggah pada sinkron berikutnya.</p>';
       else if (bisaUlang) uh += '<button class="btn primary" id="entriRetryUp" style="margin-top:10px;min-height:44px"'+(gasUploadBusy?" disabled":"")+'>'+(gasUploadBusy ? "Mengunggah…" : "Coba unggah ulang")+'</button>';
@@ -2663,13 +2665,24 @@ async function gasRefreshFolders(){
    Lanjutan 2026-11-27 (kasus “Service Accounts do not have storage quota”):
    pada backend Worker berkas tidak lagi dikirim lewat server — aplikasi
    mengunggahnya langsung ke folder Drive kegiatan atas nama akun Google
-   pengguna (lihat bagian “Unggah langsung ke Drive” di bawah). */
+   pengguna (lihat bagian “Unggah langsung ke Drive” di bawah).
+   Lanjutan 2026-11-27 (kasus “Berkas Drive tidak ditemukan / tidak bisa
+   dibaca: <fileId>”): unggah langsungnya BERHASIL — fileId itu bukti berkas
+   sudah masuk folder sebagai milik pengguna — tetapi langkah terakhir
+   catatEviden di Worker versi terpasang memeriksa berkas lewat token
+   service account (scope drive.file) yang tidak bisa melihat berkas milik
+   pengguna, jadi pencatatannya ditolak. Perbaikan sisi aplikasi: berkas
+   yang fileId Drive-nya sudah tersimpan masuk golongan “catat” — ia SUDAH
+   di Drive dan hanya perlu dicatat server; pengulangannya tidak butuh isi
+   berkas maupun token Drive, tidak pernah mengunggah duplikat, dan TIDAK
+   PERNAH ditampilkan sebagai “lampirkan ulang”. */
 function pendingUploadFiles(){
-  const out = { failed:[], pending:[], reattach:[] };
+  const out = { failed:[], pending:[], reattach:[], catat:[] };
   if (dataMode==="sample") return out;
   ENTRIES.forEach(e=>{
     (e.files||[]).forEach(f=>{
       if (f.uploaded || f.sample) return;
+      if (f.driveFileId){ out.catat.push({ e:e, f:f }); return; }
       if (f.upState==="failed") (f.file ? out.failed : out.reattach).push({ e:e, f:f });
       else if (f.upState==="pending" && f.file) out.pending.push({ e:e, f:f });
     });
@@ -2713,9 +2726,11 @@ async function prepareUploadPayload(f){
    folder kegiatan dibuat service account) sehingga berkasnya dimiliki
    langsung oleh pengguna. Token akses HANYA hidup di memori sesi ini —
    tidak pernah disimpan ke localStorage. Setelah berkas masuk folder,
-   Worker diberitahu lewat aksi catatEviden: server memverifikasi berkas
-   benar berada di folder entri itu, menerapkan akses folder, dan menulis
-   Link Bukti Dukung ke Log_Kerja. Backend GAS tidak berubah: GAS berjalan
+   Worker diberitahu lewat aksi catatEviden: server mencatat berkas itu
+   (bukti sahnya adalah respons unggah yang diterima aplikasi — server
+   TIDAK membaca ulang berkasnya lewat service account, karena token
+   service account tidak bisa melihat berkas milik pengguna), menerapkan
+   akses folder, dan menulis Link Bukti Dukung ke Log_Kerja. Backend GAS tidak berubah: GAS berjalan
    sebagai pengguna sendiri, jadi jalur uploadEviden base64 lama tetap
    dipakai di sana.
    Lanjutan 2026-11-27 (kasus “Insufficient permissions for the specified
@@ -2861,24 +2876,33 @@ function driveIzinIndukErr(err){
 async function uploadOneEviden(e, f, ctx){
   ctx = ctx || {};
   const worker = backendKind(gasUrlVal())==="worker";
-  if (worker && ctx.tokenErr){
+  /* Berkas yang fileId Drive-nya sudah tersimpan berarti SUDAH terunggah ke
+     Drive pada percobaan sebelumnya — yang tersisa hanya pencatatan di
+     server (catatEviden). Langkah itu tidak butuh token Drive dan tidak
+     butuh isi berkas, jadi tetap jalan walau token gagal didapat atau
+     aplikasi baru dibuka ulang; berkasnya tidak pernah diunggah dua kali. */
+  const catatSaja = worker && !!f.driveFileId;
+  if (worker && ctx.tokenErr && !catatSaja){
     f.upState = "failed"; f.upTries = (f.upTries||0)+1; f.upError = ctx.tokenErr.message;
     return false;
   }
   let lastErr = null;
   for (let attempt=1; attempt<=2; attempt++){
     try{
-      const pay = await prepareUploadPayload(f);
       if (worker){
-        const token = ctx.token || await driveEnsureToken(!!ctx.interactive);
-        let fileId = f.driveFileId || "";
-        if (!fileId){
+        let meta;
+        if (f.driveFileId){
+          meta = { nama: f.driveNama || f.name, mime: f.driveMime || f.type || "application/octet-stream", ukuran: f.driveUkuran || f.size || 0 };
+        } else {
+          const pay = await prepareUploadPayload(f);
+          const token = ctx.token || await driveEnsureToken(!!ctx.interactive);
           /* Folder kegiatan dimiliki service account: minta server
              menyiapkannya dulu (aksi siapkanFolder memberi akun pengguna
              peran writer) — tanpa itu Drive menolak unggah dengan
              “Insufficient permissions for the specified parent”. */
           await driveSiapkanFolder(e, ctx, false);
           if (!e.folderId) throw new Error("ID folder eviden entri ini belum terbaca aplikasi — jalankan “Sinkronkan sekarang” sekali lagi supaya ID foldernya terbaca dari server, lalu unggah ulang.");
+          let fileId = "";
           try{
             const upFile = await driveUploadFile(token, e.folderId, pay);
             fileId = upFile.id;
@@ -2895,16 +2919,23 @@ async function uploadOneEviden(e, f, ctx){
             const upFile2 = await driveUploadFile(token, e.folderId, pay);
             fileId = upFile2.id;
           }
-          f.driveFileId = fileId; // tersimpan: bila catatEviden gagal, ulangan tidak mengunggah berkas yang sama dua kali
+          /* Simpan fileId + metadata unggahan SEKARANG dan persistkan:
+             bila catatEviden di bawah gagal (atau aplikasi tertutup di
+             tengah jalan), ulangan cukup mencatat — tidak mengunggah
+             berkas yang sama dua kali. */
+          f.driveFileId = fileId; f.driveNama = pay.nama; f.driveMime = pay.mime; f.driveUkuran = pay.blob.size;
+          saveStore();
+          meta = { nama: pay.nama, mime: pay.mime, ukuran: pay.blob.size };
         }
-        const up = await gasCall({ action:"catatEviden", idLog: e.logId, berkas:{ fileId:fileId, nama:pay.nama, mime:pay.mime, ukuran:pay.blob.size } }, 60000);
-        f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || fileId;
-        if (pay.nama !== f.name){ f.name = pay.nama; f.size = pay.blob.size; f.type = pay.mime; }
+        const up = await gasCall({ action:"catatEviden", idLog: e.logId, berkas:{ fileId:f.driveFileId, nama:meta.nama, mime:meta.mime, ukuran:meta.ukuran } }, 60000);
+        f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || f.driveFileId;
+        if (meta.nama !== f.name){ f.name = meta.nama; f.size = meta.ukuran; f.type = meta.mime; }
         if (up.linkBukti){ e.driveUrl = up.linkBukti; e.link = true; }
         if (up.folderUrl) e.folderUrl = up.folderUrl;
         if (up.folderId) e.folderId = up.folderId;
         return true;
       }
+      const pay = await prepareUploadPayload(f);
       const b64 = await fileToB64(pay.blob);
       const up = await gasCall({ action:"uploadEviden", idLog: e.logId, berkas:{ nama:pay.nama, mime:pay.mime, base64:b64 } }, 120000);
       f.uploaded = true; f.upState = ""; f.upError = ""; f.driveFileId = up.fileId || f.driveFileId || "";
@@ -2919,7 +2950,14 @@ async function uploadOneEviden(e, f, ctx){
   }
   f.upState = "failed"; f.upTries = (f.upTries||0)+1;
   f.upError = (lastErr && lastErr.message) || "Unggah gagal tanpa pesan dari server";
-  if (worker && driveIzinIndukErr(lastErr) && f.upError.indexOf("izin tulis")<0){
+  if (worker && f.driveFileId && /tidak ditemukan|tidak bisa dibaca/i.test(f.upError)){
+    /* Galat khas Worker versi lama: berkasnya SUDAH ada di Drive sebagai
+       milik pengguna, tetapi catatEviden memeriksanya lewat service
+       account yang tidak bisa melihat berkas pengguna. Jelaskan apa
+       adanya — berkasnya aman, jangan dilampirkan ulang. */
+    f.upError = "Berkasnya SUDAH terunggah ke Drive sebagai milik akun Anda — yang gagal hanya pencatatannya di server (“"+f.upError+"”): Worker versi terpasang memeriksa berkas lewat service account yang tidak bisa melihat berkas milik pengguna. Deploy ulang Worker versi terbaru, lalu tekan “Coba unggah ulang” — berkas tidak diunggah dua kali dan tidak perlu dilampirkan ulang.";
+  }
+  else if (worker && driveIzinIndukErr(lastErr) && f.upError.indexOf("izin tulis")<0){
     f.upError += " · Folder kegiatan entri ini belum memberi izin tulis ke akun Google Anda (foldernya milik service account Worker) — aplikasi sudah meminta server menyiapkannya lewat aksi siapkanFolder; pastikan Worker sudah di-deploy ulang ke versi terbaru, lalu tekan “Coba unggah ulang”.";
   }
   return false;
@@ -2931,7 +2969,10 @@ async function runUploadPass(rep, interactive){
   for (const e of ENTRIES){
     if (!e.logId) continue;
     for (const f of e.files){
-      if (!f.file || f.uploaded) continue;
+      /* Berkas tanpa isi di sesi ini dilewati — KECUALI yang fileId
+         Drive-nya sudah tersimpan: berkas itu sudah di Drive dan hanya
+         perlu dicatat server, tanpa isi berkas. */
+      if (f.uploaded || (!f.file && !f.driveFileId)) continue;
       if (!ctx) ctx = await uploadCtx(interactive);
       if (await uploadOneEviden(e, f, ctx)) rep.uploaded++; else rep.upFailed++;
     }
@@ -2967,7 +3008,7 @@ async function retryUploads(onlyEntryId){
       if (!e.logId) continue;
       if (onlyEntryId && e.id!==onlyEntryId) continue;
       for (const f of e.files){
-        if (!f.file || f.uploaded) continue;
+        if (f.uploaded || (!f.file && !f.driveFileId)) continue;
         if (!ctx) ctx = await uploadCtx(true); // dari ketukan pengguna: jendela izin Drive boleh tampil
         if (await uploadOneEviden(e, f, ctx)) rep.uploaded++; else rep.upFailed++;
       }
@@ -3067,9 +3108,10 @@ function renderSyncChip(){
   /* Eviden gagal terunggah mengalahkan status hijau: chip merah sampai
      unggah ulangnya berhasil — sinkron entri yang sukses tidak menyembunyikannya. */
   if (pend.failed.length){ cls = "err"; txt = pend.failed.length+" eviden gagal terunggah — ketuk untuk unggah ulang"; }
+  else if (pend.catat.length){ cls = "err"; txt = pend.catat.length+" eviden sudah di Drive, belum tercatat — ketuk untuk selesaikan"; }
   else if (ls && ls.error){ cls = "err"; txt = "Sinkron terakhir gagal"; }
   else if (ls){ cls = "ok"; txt = "Tersinkron "+(ls.ts ? relTimeStr(ls.ts) : (ls.waktu ? "· "+ls.waktu : "")); }
-  if (!pend.failed.length && pend.pending.length && ls && !ls.error){ cls = ""; txt = pend.pending.length+" eviden menunggu unggah"; }
+  if (!pend.failed.length && !pend.catat.length && pend.pending.length && ls && !ls.error){ cls = ""; txt = pend.pending.length+" eviden menunggu unggah"; }
   c.className = "syncchip "+cls;
   c.innerHTML = '<span class="dot"></span><span>'+esc(txt)+'</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>';
 }
@@ -3166,15 +3208,19 @@ function renderGasCard(){
      kotak ini tampil menonjol di kartu Koneksi — lengkap dengan penyebab
      per berkas dan tombol ulangi yang tidak mengirim ulang entri. */
   const pendCard = pendingUploadFiles();
-  if (pendCard.failed.length || pendCard.pending.length || pendCard.reattach.length){
+  if (pendCard.failed.length || pendCard.pending.length || pendCard.reattach.length || pendCard.catat.length){
     const totalGagal = pendCard.failed.length + pendCard.reattach.length;
-    h += '<div class="upfailbox"><b>'+(totalGagal ? totalGagal+' eviden gagal terunggah ke Drive' : pendCard.pending.length+' eviden belum terunggah ke Drive')+'</b>'
+    const judulKotak = totalGagal ? totalGagal+' eviden gagal terunggah ke Drive'
+      : (pendCard.catat.length ? pendCard.catat.length+' eviden sudah masuk Drive, belum tercatat di server'
+      : pendCard.pending.length+' eviden belum terunggah ke Drive');
+    h += '<div class="upfailbox"><b>'+judulKotak+'</b>'
       + '<ul>'
       + pendCard.failed.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span>'+(x.f.upError ? ' — '+esc(x.f.upError) : '')+'</li>').join("")
+      + pendCard.catat.map(x=>'<li>'+esc(x.f.driveNama || x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span>'+(x.f.upError ? ' — '+esc(x.f.upError) : ' — berkasnya sudah ada di Drive; tinggal dicatat server. Tekan “Coba unggah ulang” — berkas tidak diunggah dua kali.')+'</li>').join("")
       + pendCard.reattach.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span> — berkas aslinya sudah tidak ada di perangkat sejak aplikasi ditutup; buka entrinya dan lampirkan ulang lewat tombol +, lalu unggah lagi</li>').join("")
       + pendCard.pending.map(x=>'<li>'+esc(x.f.name)+' <span class="muted">('+esc(x.e.date)+(x.e.logId ? ' · '+esc(x.e.logId) : '')+')</span> — menunggu diunggah</li>').join("")
       + '</ul>'
-      + ((pendCard.failed.length || pendCard.pending.length)
+      + ((pendCard.failed.length || pendCard.pending.length || pendCard.catat.length)
         ? '<button class="btn primary" id="gasRetryUpBtn" style="margin-top:12px;min-height:48px"'+(gasUploadBusy||gasSyncBusy?" disabled":"")+'>'+(gasUploadBusy ? "Mengunggah ulang…" : gasSyncBusy ? "Sinkron sedang berjalan…" : "Coba unggah ulang")+'</button>'
           + '<p class="small" style="margin:8px 0 0">Tombol ini hanya mengunggah eviden yang tertunda — entri tidak dikirim ulang ke Sheets.</p>'
         : '')
