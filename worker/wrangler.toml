@@ -50,9 +50,9 @@ TELEGRAM_CHAT_ID = ""
 # Cara mengaktifkan:
 #   1) npx wrangler kv namespace create PROGRESIO_KV
 #   2) salin "id" yang muncul, hapus tanda # pada 3 baris di bawah, isi id-nya.
-# [[kv_namespaces]]
-# binding = "PROGRESIO_KV"
-# id = "312f400206b34a6e9097b3de6d2332a2"
+[[kv_namespaces]]
+binding = "PROGRESIO_KV"
+id = "312f400206b34a6e9097b3de6d2332a2"
 
 # --- Rate limiting bawaan (opsional; ketersediaan di paket Free BELUM
 # terkonfirmasi di riset 2026-11-26 — jangan andalkan sebelum dicek di
